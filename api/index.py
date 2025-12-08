@@ -107,20 +107,36 @@ def get_recipe_html(db: Session = Depends(get_db)):
         return HTMLResponse("<h1>No Recipe Found</h1>")
 
     ingredients_list = recipe.ingredients_str.split("|")
-    ing_html = "".join([f'<li itemprop="recipeIngredient">{ing}</li>' for ing in ingredients_list])
     
+    # 1. HTML für die Zutaten-Liste generieren
+    # WICHTIG: Bring! verwendet hier die verkürzte Form "ingredients" statt "recipeIngredient"
+    ing_html = "".join([f'<li itemprop="ingredients">{ing}</li>' for ing in ingredients_list])
+    
+    # 2. Das gesamte HTML mit den korrekten Bring!-spezifischen Attributen
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
         <title>{recipe.title}</title>
+        <meta charset="utf-8">
     </head>
     <body>
-        <div itemscope itemtype="http://schema.org/Recipe">
+        <div itemscope itemtype="http://schema.org/Recipe"> 
+            
             <h1 itemprop="name">{recipe.title}</h1>
-            <img itemprop="image" src="{recipe.image_url}" style="max-width:100%"/>
-            <p itemprop="description">{recipe.description}</p>
-            <ul>{ing_html}</ul>
+            
+            <div itemprop="tagline">{recipe.description}</div> 
+            
+            <img src="{recipe.image_url}" itemprop="image" style="max-width:100%">
+            
+            <p>
+                <div><span>serves: </span><span itemprop="yield">2-4 servings</span></div>
+            </p>
+
+            <ul>
+                {ing_html}
+            </ul>
+            
             <div itemprop="recipeInstructions">{recipe.instructions}</div>
         </div>
     </body>
