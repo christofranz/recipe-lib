@@ -7,19 +7,20 @@
             "DOM",
             "DOM.Iterable"
         ],
-        // 👇 FEHLER BEFINDET SICH HIER: Stellen Sie sicher, dass dieser Wert modern ist.
         "module": "ESNext",
-        // 👇 Muss kompatibel sein
         "moduleResolution": "bundler",
         "skipLibCheck": true,
         "allowImportingTsExtensions": true,
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "noEmit": true, // Wichtig für Vite
+        "noEmit": true,
         "jsx": "react-jsx",
         "strict": true,
         "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true
+        "allowSyntheticDefaultImports": true,
+        // ✅ IMPORTANT FIXES
+        "allowJs": false, // Do not treat .js files as part of the project
+        "checkJs": false // Prevent TS from error-checking JS files (fixes Vercel)
     },
     "include": [
         "src"
