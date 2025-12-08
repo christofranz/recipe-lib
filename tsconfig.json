@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        /* ... weitere Optionen ... */
+        "skipLibCheck": true, // WICHTIG: Überspringt die Typprüfung von node_modules
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "jsx": "react-jsx"
+    },
+    "include": [
+        "src"
+    ],
+    "references": [
+        {
+            "path": "./tsconfig.node.json"
+        }
+    ]
+}
