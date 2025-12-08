@@ -8,7 +8,7 @@ interface Recipe {
     instructions: string;
 }
 
-function App() {
+export default function App() {
     const [recipe, setRecipe] = useState<Recipe | null>(null);
 
     useEffect(() => {
@@ -67,5 +67,3 @@ function App() {
         </div>
     );
 }
-
-export default App;

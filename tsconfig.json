@@ -1,10 +1,25 @@
 {
     "compilerOptions": {
-        /* ... weitere Optionen ... */
-        "skipLibCheck": true, // WICHTIG: Überspringt die Typprüfung von node_modules
+        "target": "ES2020",
+        "useDefineForClassFields": true,
+        "lib": [
+            "ES2020",
+            "DOM",
+            "DOM.Iterable"
+        ],
+        // 👇 FEHLER BEFINDET SICH HIER: Stellen Sie sicher, dass dieser Wert modern ist.
+        "module": "ESNext",
+        // 👇 Muss kompatibel sein
+        "moduleResolution": "bundler",
+        "skipLibCheck": true,
+        "allowImportingTsExtensions": true,
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "noEmit": true, // Wichtig für Vite
+        "jsx": "react-jsx",
+        "strict": true,
         "esModuleInterop": true,
-        "allowSyntheticDefaultImports": true,
-        "jsx": "react-jsx"
+        "allowSyntheticDefaultImports": true
     },
     "include": [
         "src"
