@@ -56,30 +56,61 @@ export default function App() {
                     <div className="flex justify-between items-center mb-4 border-b pb-4">
                         <h2 className="font-bold text-lg">Ingredients</h2>
                         <div style={{ display: 'flex' }}>
+                            {/* Wir verwenden den Deep-Link in einem A-Tag, das das gestylte DIV umschließt */}
                             <a
-                                href={finalBringDeeplink}
+                                href={finalBringDeeplink} // Ihr funktionierender Deep-Link
                                 target="_blank"
                                 rel="nofollow noopener"
-                                // 🎨 Tailwind Klassen für den Bring! Look (grün/weiß)
-                                className="bg-[#4FABA2] text-white px-4 py-2 rounded-full text-xs font-bold uppercase shadow-md hover:bg-[#3E958B] transition duration-300 flex items-center"
+                                style={{ textDecoration: 'none' }} // Entfernt die Unterstreichung vom Link
                             >
-                                {/* 📝 BRING! LOGO SVG (Minimalistische Version des Icons) */}
-                                <svg
-                                    width="18"
-                                    height="18"
-                                    viewBox="0 0 18 25"
-                                    fill="white"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="w-4 h-4 mr-2"
+                                {/* Dies ist das DIV, das den eigentlichen Button-Stil trägt */}
+                                <div
+                                    style={{
+                                        boxSizing: 'border-box',
+                                        display: 'flex',
+                                        flexDirection: 'row',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        height: '100%',
+                                        padding: '0px',
+                                        cursor: 'pointer',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        minHeight: '40px',
+                                        backgroundColor: '#4FABA2', // Bring! Farbe für den Hintergrund
+                                    }}
                                 >
-                                    <path d="M11.5419 4.43201L13.1396 4.35939C13.1396 4.35939 13.1396 2.61644 12.9944 2.4712C12.8491 2.25333 11.8324 1.16399 11.1788 0.94612C10.5978 0.873497 9.36321 1.30923 9.14534 1.38186C9.14534 1.38186 9.07272 1.38186 9.07272 1.45448C8.92748 1.67235 8.20125 2.68907 8.12863 3.1248C7.98338 3.41529 7.83813 4.50463 7.83813 4.50463H8.56436H9.0001C9.0001 4.50463 9.14534 2.76169 9.07272 2.68907C9.72633 2.61644 10.6704 2.39858 11.1062 2.54382C11.324 2.54382 11.5419 4.43201 11.5419 4.43201Z" />
-                                    <path d="M3.98901 4.64975L5.29622 4.57713C5.29622 4.57713 5.2236 2.83418 5.51409 2.47107C6.02245 2.2532 6.45819 2.18058 6.89392 2.10795C7.32966 2.10795 8.34638 1.96271 8.34638 2.18058C8.419 2.39845 8.49162 3.56041 8.49162 4.43188C9.72621 4.43188 9.72621 4.43188 9.72621 4.43188L9.43572 1.96271C9.43572 1.96271 8.49162 0.582877 8.12851 0.510254C7.91064 0.510254 7.54753 0.510254 6.74868 0.728122C5.94983 0.945991 5.58671 1.09124 5.58671 1.09124C5.58671 1.09124 5.15098 1.3091 4.71524 2.03533C4.20688 2.68894 4.13426 2.83418 4.13426 2.83418C4.13426 2.83418 3.98901 3.8509 3.98901 4.64975Z" />
-                                    <path d="M0.140011 22.2971C0.140011 22.2971 0.64837 22.5876 1.59247 22.8054C2.53656 23.0233 12.6311 24.9841 13.43 24.4031C13.43 23.3138 13.0669 4.28662 13.0669 4.28662C13.0669 4.28662 1.3746 4.43187 0.93886 4.72236C0.93886 4.72236 0.866238 4.79498 0.793616 4.94023C0.720993 5.08547 0.64837 5.37596 0.64837 5.66645C0.575747 7.4094 0.430501 11.1132 0.285256 14.5991C0.0673876 18.5207 -0.15048 22.0792 0.140011 22.2971Z" />
-                                    <path d="M13.4299 24.4031C13.4299 24.4031 17.2063 21.9339 17.4241 21.2803C17.3515 20.1184 16.9158 4.72236 16.48 4.64973C16.0443 4.43187 13.0668 4.28662 13.0668 4.28662L13.4299 24.4031Z" fill="#24A599" />
-                                    <path d="M3.3354 12.6381L5.65933 14.381L10.0167 8.78906L11.6144 10.1689L5.80457 17.7217L1.95557 14.3084L3.3354 12.6381Z" fill="#24A599" />
-                                </svg>
+                                    {/* Das Base64-kodierte Bild (PNG) */}
+                                    <img
+                                        src="data:image/png;base64,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"
+                                        style={{
+                                            boxSizing: 'border-box',
+                                            height: '34px',
+                                            width: '26px',
+                                            margin: '0px 10px 0px 12px'
+                                        }}
+                                    />
 
-                                Auf die Einkaufsliste setzen
+                                    {/* Der Button-Text */}
+                                    <span
+                                        style={{
+                                            textDecoration: 'none',
+                                            fontFamily: 'Helvetica, Arial',
+                                            fontWeight: 600,
+                                            letterSpacing: 'normal',
+                                            boxSizing: 'border-box',
+                                            fontSize: '14px',
+                                            lineHeight: '14px',
+                                            flexGrow: 2,
+                                            verticalAlign: 'bottom',
+                                            padding: '2px 12px 0px',
+                                            WebkitFontSmoothing: 'antialiased', // camelCase für JSX
+                                            color: 'white'
+                                        }}
+                                    >
+                                        Zur Einkaufsliste
+                                    </span>
+                                </div>
                             </a>
                         </div>
                     </div>
