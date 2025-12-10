@@ -1,8 +1,9 @@
 import os
 from typing import List, Optional # Python 3.8 compatibility import
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.templating import Jinja2Templates
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -44,6 +45,8 @@ class RecipeDB(Base):
 # --- 3. APP SETUP ---
 
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
     CORSMiddleware,
@@ -100,46 +103,27 @@ def get_recipe_json(db: Session = Depends(get_db)):
         "instructions": recipe.instructions
     }
 
-@app.get("/api/public/recipe")
-def get_recipe_html(db: Session = Depends(get_db)):
+@app.get("/r/{rid}", response_class=HTMLResponse)
+def recipe_import_page(request: Request, rid: int, db: Session = Depends(get_db)):
+    # Nur der erste Eintrag (ID 1) ist relevant in unserem PoC
+    if rid != 1:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+
     recipe = db.query(RecipeDB).first()
     if not recipe:
-        return HTMLResponse("<h1>No Recipe Found</h1>")
+        raise HTTPException(status_code=404, detail="Recipe not found in DB")
 
+    # Zutaten in eine Liste umwandeln (wie im Template benötigt)
     ingredients_list = recipe.ingredients_str.split("|")
+    instructions_list = recipe.instructions.split("\n")
     
-    # 1. HTML für die Zutaten-Liste generieren
-    # WICHTIG: Bring! verwendet hier die verkürzte Form "ingredients" statt "recipeIngredient"
-    ing_html = "".join([f'<li itemprop="ingredients">{ing}</li>' for ing in ingredients_list])
+    # Die volle URL (wichtig für das Bring! Widget)
+    full_url = str(request.url) 
     
-    # 2. Das gesamte HTML mit den korrekten Bring!-spezifischen Attributen
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>{recipe.title}</title>
-        <meta charset="utf-8">
-    </head>
-    <body>
-        <div itemscope itemtype="http://schema.org/Recipe"> 
-            
-            <h1 itemprop="name">{recipe.title}</h1>
-            
-            <div itemprop="tagline">{recipe.description}</div> 
-            
-            <img src="{recipe.image_url}" itemprop="image" style="max-width:100%">
-            
-            <p>
-                <div><span>serves: </span><span itemprop="yield">2-4 servings</span></div>
-            </p>
-
-            <ul>
-                {ing_html}
-            </ul>
-            
-            <div itemprop="recipeInstructions">{recipe.instructions}</div>
-        </div>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+    return templates.TemplateResponse("recipe_import.html", {
+        "request": request,
+        "recipe": recipe,
+        "ingredients": ingredients_list, # NEU: Liste der Zutaten
+        "instructions": instructions_list, # NEU: Liste der Anweisungen
+        "full_url": full_url # Wichtig für data-bring-import
+    })

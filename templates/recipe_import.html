@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="de">
+
+<head>
+    <meta charset="utf-8">
+    <title>{{ recipe.title }}</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+
+<body>
+    <div itemscope itemtype="http://schema.org/Recipe">
+        <h1 itemprop="name">{{ recipe.title }}</h1>
+        <div itemprop="tagline">{{ recipe.description }}</div>
+        <img src="{{ recipe.image_url }}" itemprop="image" style="max-width:100%">
+
+        <h2>Zutaten</h2>
+        <ul>
+            {% for ing in ingredients %}
+            <li itemprop="ingredients">{{ ing }}</li>
+            {% endfor %}
+        </ul>
+
+        <h2>Zubereitung</h2>
+        <div itemprop="recipeInstructions">
+            {% for step in instructions %}
+            <p>{{ step }}</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script async="async" src="//platform.getbring.com/widgets/import.js"></script>
+    <div data-bring-import="{{ full_url }}" style="display:none">
+        <a href="https://www.getbring.com">Bring! Einkaufsliste App</a>
+    </div>
+</body>
+
+</html>

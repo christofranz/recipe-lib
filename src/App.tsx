@@ -12,24 +12,27 @@ export default function App() {
     const [recipe, setRecipe] = useState<Recipe | null>(null);
 
     useEffect(() => {
+        // 1. DATENABRUF: Holt das Rezept vom Backend
         fetch('/api/recipe')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`HTTP error! status: ${res.status}`);
+                }
+                return res.json();
+            })
             .then(data => setRecipe(data))
-            .catch(err => console.error("Error:", err));
+            .catch(err => {
+                console.error("Error fetching recipe:", err);
+                // Optional: setRecipe auf leeres Objekt setzen, um Fehlermeldung anzuzeigen
+            });
 
-        const script = document.createElement("script");
-        script.src = "//platform.getbring.com/widgets/import.js";
-        script.async = true;
-        document.body.appendChild(script);
-
-        return () => { document.body.removeChild(script); }
     }, []);
 
     if (!recipe) return <div className="p-10 text-center text-xl">Loading from Database...</div>;
 
-    const publicEndpoint = window.location.hostname === 'localhost'
-        ? 'http://127.0.0.1:8000/api/public/recipe'
-        : `${window.location.origin}/api/public/recipe`;
+    const importPageUrl = window.location.hostname === 'localhost'
+        ? 'http://127.0.0.1:8000/r/1' // Lokaler FastAPI-Endpunkt
+        : `${window.location.origin}/r/1`; // Vercel-Endpunkt
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -45,9 +48,15 @@ export default function App() {
 
                     <div className="flex justify-between items-center mb-4 border-b pb-4">
                         <h2 className="font-bold text-lg">Ingredients</h2>
-                        <div data-bring-import={publicEndpoint} style={{ display: 'flex' }}>
-                            <a href="https://www.getbring.com" className="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase shadow hover:bg-red-700 transition">
-                                Add to Bring!
+                        {/* NEU: Der Link öffnet die dedizierte Importseite im neuen Tab */}
+                        <div>
+                            <a
+                                href={importPageUrl}
+                                target="_blank"
+                                rel="nofollow noopener"
+                                className="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase shadow hover:bg-red-700 transition"
+                            >
+                                Auf die Einkaufsliste setzen
                             </a>
                         </div>
                     </div>
