@@ -30,9 +30,16 @@ export default function App() {
 
     if (!recipe) return <div className="p-10 text-center text-xl">Loading from Database...</div>;
 
-    const importPageUrl = window.location.hostname === 'localhost'
-        ? 'http://127.0.0.1:8000/r/1' // Lokaler FastAPI-Endpunkt
-        : `${window.location.origin}/r/1`; // Vercel-Endpunkt
+    // Die URL, die Bring! crawlen soll: Unsere serverseitig gerenderte Schema-Seite
+    const recipeSourceUrl = window.location.hostname === 'localhost'
+        ? encodeURIComponent('http://127.0.0.1:8000/r/1')
+        : encodeURIComponent(`${window.location.origin}/r/1`);
+
+    // Die Basis-API-URL für Bring!
+    const bringDeeplinkBase = "https://api.getbring.com/rest/bringrecipes/deeplink";
+
+    // Der vollständige Deep-Link
+    const finalBringDeeplink = `${bringDeeplinkBase}?url=${recipeSourceUrl}&source=web&baseQuantity=4&requestedQuantity=4`;
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -48,15 +55,15 @@ export default function App() {
 
                     <div className="flex justify-between items-center mb-4 border-b pb-4">
                         <h2 className="font-bold text-lg">Ingredients</h2>
-                        {/* NEU: Der Link öffnet die dedizierte Importseite im neuen Tab */}
-                        <div>
+                        {/* NEU: Der Button ist ein einfacher Deep-Link */}
+                        <div style={{ display: 'flex' }}>
                             <a
-                                href={importPageUrl}
-                                target="_blank"
+                                href={finalBringDeeplink} // ZIEL: Bring! API
+                                target="_blank" // Wichtig: Öffnet in einem neuen Tab/App
                                 rel="nofollow noopener"
-                                className="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase shadow hover:bg-red-700 transition"
+                                className="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-bold uppercase shadow hover:bg-red-700 transition duration-300"
                             >
-                                Auf die Einkaufsliste setzen
+                                Add to Bring!
                             </a>
                         </div>
                     </div>
