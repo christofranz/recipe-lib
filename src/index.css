@@ -1,3 +1,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Eigene Klasse für den Bring! Button */
+.bring-recipe-button {
+    /* Grauer Hintergrund und Hover-Effekt */
+    @apply bg-gray-400 hover:bg-gray-500 transition duration-150;
+
+    /* Textfarbe, Schriftgröße und Formatierung */
+    @apply text-white text-base font-semibold uppercase;
+
+    /* Padding und Form */
+    @apply px-4 py-2 rounded-md shadow-sm;
+
+    /* Layout für Logo und Text */
+    @apply flex items-center space-x-2;
+
+    /* Link-Unterstreichung entfernen */
+    text-decoration: none;
+
+    /* Stellen Sie sicher, dass der Text weich gerendert wird */
+    -webkit-font-smoothing: antialiased;
+}

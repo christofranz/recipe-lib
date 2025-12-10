@@ -61,3 +61,5 @@ Your App will show the "Spicy DB-Powered Shrimp".
 
 
 ENV Variables: Dashboard -> Settings -> env variables -> manually add variables from prisma postgres
+
+tailwind: npm install -D tailwindcss postcss autoprefixer and had to add postcss.config.js
