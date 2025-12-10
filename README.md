@@ -59,4 +59,5 @@ The backend will detect POSTGRES_URL, run the startup event, create the table in
 
 Your App will show the "Spicy DB-Powered Shrimp".
 
+
 ENV Variables: Dashboard -> Settings -> env variables -> manually add variables from prisma postgres
