@@ -88,6 +88,5 @@ export default function App() {
                 <div className="text-gray-600 whitespace-pre-wrap">{recipe.instructions}</div>
             </div>
         </div>
-        </div >
     );
 }
