@@ -55,78 +55,39 @@ export default function App() {
 
                     <div className="flex justify-between items-center mb-4 border-b pb-4">
                         <h2 className="font-bold text-lg">Ingredients</h2>
-                        <div style={{ display: 'flex' }}>
-                            {/* Wir verwenden den Deep-Link in einem A-Tag, das das gestylte DIV umschließt */}
+                        div className="ds-flex grid--float-left ds-col-12 ds-col-m-8 or-2">
+                        <div id="ingredients-transfer-buttons" className="">
                             <a
                                 href={finalBringDeeplink} // Ihr funktionierender Deep-Link
                                 target="_blank"
                                 rel="nofollow noopener"
-                                style={{ textDecoration: 'none' }} // Entfernt die Unterstreichung vom Link
+                                // Klassen von Chefkoch übernommen (ds-btn, ds-btn--primary, etc.)
+                                className="ds-btn ds-btn--primary ds-btn--full ds-mb-xs-4 ds-mb-1 bring-button ds-mr-4 flex items-center justify-center bg-[#4FABA2] hover:bg-[#3E958B] transition duration-300" // Tailwind-Ersatz für die Farbe hinzugefügt, falls die ds-Klassen fehlen
                             >
-                                {/* Dies ist das DIV, das den eigentlichen Button-Stil trägt */}
-                                <div
-                                    style={{
-                                        boxSizing: 'border-box',
-                                        display: 'flex',
-                                        flexDirection: 'row',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        height: '100%',
-                                        padding: '0px',
-                                        cursor: 'pointer',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        minHeight: '40px',
-                                        backgroundColor: '#4FABA2', // Bring! Farbe für den Hintergrund
-                                    }}
-                                >
-                                    {/* Das Base64-kodierte Bild (PNG) */}
-                                    <img
-                                        src="data:image/png;base64,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"
-                                        style={{
-                                            boxSizing: 'border-box',
-                                            height: '34px',
-                                            width: '26px',
-                                            margin: '0px 10px 0px 12px'
-                                        }}
-                                    />
-
-                                    {/* Der Button-Text */}
-                                    <span
-                                        style={{
-                                            textDecoration: 'none',
-                                            fontFamily: 'Helvetica, Arial',
-                                            fontWeight: 600,
-                                            letterSpacing: 'normal',
-                                            boxSizing: 'border-box',
-                                            fontSize: '14px',
-                                            lineHeight: '14px',
-                                            flexGrow: 2,
-                                            verticalAlign: 'bottom',
-                                            padding: '2px 12px 0px',
-                                            WebkitFontSmoothing: 'antialiased', // camelCase für JSX
-                                            color: 'white'
-                                        }}
-                                    >
-                                        Zur Einkaufsliste
-                                    </span>
-                                </div>
+                                <img
+                                    // Das Original SVG-Logo als Data URI
+                                    src="data:image/svg+xml,%3csvg%20width='18'%20height='25'%20viewBox='0%200%2018%2025'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M11.5419%204.43201L13.1396%204.35939C13.1396%204.35939%2013.1396%202.61644%2012.9944%202.4712C12.8491%202.25333%2011.8324%201.16399%2011.1788%200.94612C10.5978%200.873497%209.36321%201.30923%209.14534%201.38186C9.14534%201.38186%209.07272%201.38186%209.07272%201.45448C8.92748%201.67235%208.20125%202.68907%208.12863%203.1248C7.98338%203.41529%207.83813%204.50463%207.83813%204.50463H8.56436H9.0001C9.0001%204.50463%209.14534%202.76169%209.07272%202.68907C9.72633%202.61644%2010.6704%202.39858%2011.1062%202.54382C11.324%202.54382%2011.5419%204.43201%2011.5419%204.43201Z'%20fill='white'/%3e%3cpath%20d='M3.98901%204.64975L5.29622%204.57713C5.29622%204.57713%205.2236%202.83418%205.51409%202.47107C6.02245%202.2532%206.45819%202.18058%206.89392%202.10795C7.32966%202.10795%208.34638%201.96271%208.34638%202.18058C8.419%202.39845%208.49162%203.56041%208.49162%204.43188C9.72621%204.43188%209.72621%204.43188%209.72621%204.43188L9.43572%201.96271C9.43572%201.96271%208.49162%200.582877%208.12851%200.510254C7.91064%200.510254%207.54753%200.510254%206.74868%200.728122C5.94983%200.945991%205.58671%201.09124%205.58671%201.09124C5.58671%201.09124%205.15098%201.3091%204.71524%202.03533C4.20688%202.68894%204.13426%202.83418%204.13426%202.83418C4.13426%202.83418%203.98901%203.8509%203.98901%204.64975Z'%20fill='white'/%3e%3cpath%20d='M0.140011%2022.2971C0.140011%2022.2971%200.64837%2022.5876%201.59247%2022.8054C2.53656%2023.0233%2012.6311%2024.9841%2013.43%2024.4031C13.43%2023.3138%2013.0669%204.28662%2013.0669%204.28662C13.0669%204.28662%201.3746%204.43187%200.93886%204.72236C0.93886%204.72236%200.866238%204.79498%200.793616%204.94023C0.720993%205.08547%200.64837%205.37596%200.64837%205.66645C0.575747%207.4094%200.430501%2011.1132%200.285256%2014.5991C0.0673876%2018.5207%20-0.15048%2022.0792%200.140011%2022.2971Z'%20fill='white'/%3e%3cpath%20d='M13.4299%2024.4031C13.4299%2024.4031%2017.2063%2021.9339%2017.4241%2021.2803C17.3515%2020.1184%2016.9158%204.72236%2016.48%204.64973C16.0443%204.43187%2013.0668%204.28662%2013.0668%204.28662L13.4299%2024.4031Z'%20fill='%234FABA2'/%3e%3cpath%20d='M3.3354%2012.6381L5.65933%2014.381L10.0167%208.78906L11.6144%2010.1689L5.80457%2017.7217L1.95557%2014.3084L3.3354%2012.6381Z'%20fill='%2324A599'/%3e%3c/svg%3e"
+                                    alt="Bring! Logo"
+                                    className="ds-mr-2"
+                                />
+                                Auf die Einkaufsliste setzen
                             </a>
                         </div>
                     </div>
-
-                    <ul className="mb-6 space-y-2">
-                        {recipe.ingredients.map((ing, i) => (
-                            <li key={i} className="flex items-center text-gray-700">
-                                <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{ing}
-                            </li>
-                        ))}
-                    </ul>
-
-                    <h2 className="font-bold text-lg mb-2">Instructions</h2>
-                    <div className="text-gray-600 whitespace-pre-wrap">{recipe.instructions}</div>
                 </div>
+
+                <ul className="mb-6 space-y-2">
+                    {recipe.ingredients.map((ing, i) => (
+                        <li key={i} className="flex items-center text-gray-700">
+                            <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{ing}
+                        </li>
+                    ))}
+                </ul>
+
+                <h2 className="font-bold text-lg mb-2">Instructions</h2>
+                <div className="text-gray-600 whitespace-pre-wrap">{recipe.instructions}</div>
             </div>
         </div>
+        </div >
     );
 }
