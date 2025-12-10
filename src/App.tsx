@@ -43,7 +43,7 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-            <div className="bg-white max-w-md w-full rounded-2xl shadow-xl overflow-hidden">
+            <div className="bg-white max-w-md lg:max-w-3xl w-full rounded-2xl shadow-xl overflow-hidden">
                 <div className="h-64 relative">
                     <img src={recipe.image_url} className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/80 to-transparent p-4">
@@ -54,11 +54,11 @@ export default function App() {
                     <p className="text-gray-600 mb-6">{recipe.description}</p>
 
                     {/* 1. CONTAINER: Hält H2 (Ingredients) und den Button NEBENEINANDER */}
-                    <div className="flex justify-between items-center mb-4 border-b pb-4">
+                    <div className="flex flex-col gap-2 lg:flex-row lg:justify-between lg:items-center mb-4 border-b pb-4">
                         <h2 className="font-bold text-lg">Zutaten</h2>
 
                         {/* Button-Container (Bring!) */}
-                        <div className="flex justify-start">
+                        <div className="w-full lg:w-auto flex justify-start">
                             <a
                                 href={finalBringDeeplink}
                                 target="_blank"
