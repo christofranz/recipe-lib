@@ -4,4 +4,4 @@ sqlalchemy
 psycopg2-binary
 jinja2
 requests
-beatufilsoup4
+beautifulsoup4
