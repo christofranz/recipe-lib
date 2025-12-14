@@ -86,8 +86,23 @@ def startup():
     db.close()
 
 # --- 5. ENDPOINTS ---
+# Get all recipes
+@app.get("/api/recipes")
+def get_all_recipes(db: Session = Depends(get_db)):
+    # Wir holen alle Rezepte. In einer echten App würden wir hier vielleicht 
+    # nur ID, Titel und Bild selektieren, um Daten zu sparen.
+    recipes = db.query(RecipeDB).all()
+    return recipes
 
-@app.get("/api/recipe")
+# Endpoint to get recipe details
+@app.get("/api/recipes/{recipe_id}")
+def get_recipe_detail(recipe_id: int, db: Session = Depends(get_db)):
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    return recipe
+
+""" @app.get("/api/recipe")
 def get_recipe_json(db: Session = Depends(get_db)):
     # Just fetch the first recipe for this PoC
     recipe = db.query(RecipeDB).first()
@@ -101,17 +116,14 @@ def get_recipe_json(db: Session = Depends(get_db)):
         "image_url": recipe.image_url,
         "ingredients": recipe.ingredients_str.split("|"),
         "instructions": recipe.instructions
-    }
+    } """
 
+# Endpoint for bring recipe import
 @app.get("/r/{rid}", response_class=HTMLResponse)
 def recipe_import_page(request: Request, rid: int, db: Session = Depends(get_db)):
-    # Nur der erste Eintrag (ID 1) ist relevant in unserem PoC
-    if rid != 1:
-        raise HTTPException(status_code=404, detail="Recipe not found")
-
-    recipe = db.query(RecipeDB).first()
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == rid).first()
     if not recipe:
-        raise HTTPException(status_code=404, detail="Recipe not found in DB")
+        raise HTTPException(status_code=404, detail="Recipe not found")
 
     # Zutaten in eine Liste umwandeln (wie im Template benötigt)
     ingredients_list = recipe.ingredients_str.split("|")

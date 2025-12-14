@@ -63,3 +63,8 @@ Your App will show the "Spicy DB-Powered Shrimp".
 ENV Variables: Dashboard -> Settings -> env variables -> manually add variables from prisma postgres
 
 tailwind: npm install -D tailwindcss postcss autoprefixer and had to add postcss.config.js
+
+echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+
+
+Extension of app: npm install react-router-dom
