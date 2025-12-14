@@ -4,9 +4,11 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
+from .recipe_scraper import scrape_jsonld
 
 # --- 1. DATABASE CONFIGURATION ---
 
@@ -41,6 +43,9 @@ class RecipeDB(Base):
     # e.g. "Shrimp|Garlic|Pasta"
     ingredients_str = Column(Text) 
     instructions = Column(Text)
+
+class RecipeImport(BaseModel):
+    url: str
 
 # --- 3. APP SETUP ---
 
@@ -139,3 +144,24 @@ def recipe_import_page(request: Request, rid: int, db: Session = Depends(get_db)
         "instructions": instructions_list, # NEU: Liste der Anweisungen
         "full_url": full_url # Wichtig für data-bring-import
     })
+
+# for recipe import
+@app.post("/api/import")
+def import_recipe(item: RecipeImport, db: Session = Depends(get_db)):
+    
+    scraped_data = scrape_jsonld(item.url)
+
+    # In DB speichern
+    new_recipe = RecipeDB(
+        title=scraped_data["title"],
+        description=scraped_data["description"],
+        image_url=scraped_data["image_url"],
+        ingredients_str=scraped_data["ingredients_str"],
+        instructions=scraped_data["instructions"]
+    )
+    
+    db.add(new_recipe)
+    db.commit()
+    db.refresh(new_recipe)
+    
+    return {"id": new_recipe.id, "title": new_recipe.title}

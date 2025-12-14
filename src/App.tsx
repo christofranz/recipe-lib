@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useParams } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';
 
 // --- TYPEN ---
 interface Recipe {
@@ -15,6 +15,11 @@ interface Recipe {
 function RecipeList() {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
 
+    // State für Import
+    const [importUrl, setImportUrl] = useState("");
+    const [isImporting, setIsImporting] = useState(false);
+    const navigate = useNavigate(); // Hook für Navigation
+
     useEffect(() => {
         fetch('/api/recipes')
             .then(res => res.json())
@@ -22,10 +27,67 @@ function RecipeList() {
             .catch(err => console.error("Error loading recipes:", err));
     }, []);
 
+    // Import Handler
+    const handleImport = async () => {
+        if (!importUrl) return;
+        setIsImporting(true);
+
+        try {
+            const response = await fetch('/api/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: importUrl })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                alert("Fehler beim Import: " + (err.detail || "Unbekannter Fehler"));
+                setIsImporting(false);
+                return;
+            }
+
+            const data = await response.json();
+            // Erfolgreich! Weiterleitung zur Detailseite des neuen Rezepts
+            navigate(`/recipe/${data.id}`);
+
+        } catch (error) {
+            console.error(error);
+            alert("Netzwerkfehler beim Importieren.");
+            setIsImporting(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-6xl mx-auto">
-                <h1 className="text-3xl font-bold mb-8 text-gray-800">Meine Rezeptsammlung</h1>
+
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+
+                    {/* H1 links */}
+                    <h1 className="text-3xl font-bold text-gray-800">Meine Rezeptsammlung</h1>
+
+                    {/* Import Feld rechts (auf mobilen Geräten unter der H1) */}
+                    <div className="flex w-full md:w-auto gap-2">
+                        <input
+                            type="text"
+                            placeholder="Rezept URL einfügen..."
+                            className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            value={importUrl}
+                            onChange={(e) => setImportUrl(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleImport()}
+                        />
+                        <button
+                            onClick={handleImport}
+                            disabled={isImporting}
+                            className={`px-6 py-2 rounded-lg text-white font-semibold transition ${isImporting
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700'
+                                }`}
+                        >
+                            {isImporting ? 'Lade...' : 'Import'}
+                        </button>
+                    </div>
+                </div>
 
                 {/* Grid Layout für die Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -52,7 +114,7 @@ function RecipeList() {
                 </div>
 
                 {recipes.length === 0 && (
-                    <p className="text-center text-gray-500 mt-10">Keine Rezepte gefunden.</p>
+                    <p className="text-center text-gray-500 mt-10">Keine Rezepte gefunden. Importiere dein erstes Rezept!</p>
                 )}
             </div>
         </div>
@@ -142,8 +204,23 @@ function RecipeDetail() {
                         ))}
                     </ul>
 
-                    <h2 className="font-bold text-lg mb-2 pt-4 border-t">Anweisungen</h2>
-                    <div className="text-gray-600 whitespace-pre-wrap">{recipe.instructions}</div>
+                    <h2 className="font-bold text-lg mb-4 pt-4 border-t">Anweisungen</h2>
+
+                    <div className="space-y-4">
+                        {/* Wir splitten den Text bei \n\n (die Absatztrennung aus dem Backend) 
+            und rendern jeden Teil als einen eigenen Absatz oder Schritt. */}
+                        {recipe.instructions.split('\n\n').filter(step => step.trim() !== '').map((step, index) => (
+                            <div key={index} className="flex items-start">
+                                {/* Visualisierung des Schritts mit Nummerierung */}
+                                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 text-green-700 font-bold rounded-full mr-3 mt-1">
+                                    {index + 1}
+                                </div>
+                                <p className="text-gray-700 leading-relaxed flex-grow">
+                                    {step}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>
