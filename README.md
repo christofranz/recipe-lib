@@ -18,7 +18,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Run
-uvicorn api.index:app --reload --port 8000
+uvicorn api.index:app --reload --port 8000 --env-file .env
 
 # Frontend
 npm install
@@ -68,3 +68,5 @@ echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo s
 
 
 Extension of app: npm install react-router-dom
+
+set jwt keys and alo in .env file, .env file can be imported in vercel

@@ -1,14 +1,39 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './AuthContext';
+import Login from './Login';
+import Register from './Register';
 
 // --- TYPEN ---
 interface Recipe {
     id: number;
+    public_id: string;
     title: string;
     description: string;
     image_url: string;
     ingredients_str: string; // Achten Sie darauf, ob Ihr Backend 'ingredients' (Array) oder string sendet
     instructions: string;
+}
+
+// --- HELPER: PROTECTED ROUTE ---
+// Wenn User nicht eingeloggt ist, redirect zu Login
+function ProtectedRoute({ children }: { children: JSX.Element }) {
+    const { isAuthenticated } = useAuth();
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+    return children;
+}
+
+// --- KOMPONENTE: HEADER (Logout Button) ---
+function Header() {
+    const { logout } = useAuth();
+    return (
+        <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">Meine Rezeptsammlung</h1>
+            <button onClick={logout} className="text-sm text-red-600 hover:text-red-800 underline">Logout</button>
+        </div>
+    );
 }
 
 // --- KOMPONENTE 1: ÜBERSICHTSLISTE (HOME) ---
@@ -20,8 +45,15 @@ function RecipeList() {
     const [isImporting, setIsImporting] = useState(false);
     const navigate = useNavigate(); // Hook für Navigation
 
+    // Auth Hook holen
+    const { token, logout } = useAuth();
+
     useEffect(() => {
-        fetch('/api/recipes')
+        fetch('/api/recipes', {
+            headers: {
+                'Authorization': `Bearer ${token}` // <--- WICHTIG
+            }
+        })
             .then(res => res.json())
             .then(data => setRecipes(data))
             .catch(err => console.error("Error loading recipes:", err));
@@ -35,9 +67,17 @@ function RecipeList() {
         try {
             const response = await fetch('/api/import', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ url: importUrl })
             });
+
+            if (response.status === 401) {
+                logout();
+                return;
+            }
 
             if (!response.ok) {
                 const err = await response.json();
@@ -60,11 +100,12 @@ function RecipeList() {
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-6xl mx-auto">
+                <Header /> {/* log out button*/}
 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
 
-                    {/* H1 links */}
-                    <h1 className="text-3xl font-bold text-gray-800">Meine Rezeptsammlung</h1>
+                    {/* H1 links <h1 className="text-3xl font-bold text-gray-800">Meine Rezeptsammlung</h1> */}
+
 
                     {/* Import Feld rechts (auf mobilen Geräten unter der H1) */}
                     <div className="flex w-full md:w-auto gap-2">
@@ -125,10 +166,13 @@ function RecipeList() {
 function RecipeDetail() {
     const { id } = useParams(); // Holt die ID aus der URL
     const [recipe, setRecipe] = useState<Recipe | null>(null);
+    const { token } = useAuth(); // Token holen
 
     useEffect(() => {
         // Fetcht jetzt das spezifische Rezept basierend auf der ID
-        fetch(`/api/recipes/${id}`)
+        fetch(`/api/recipes/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
             .then(res => {
                 if (!res.ok) throw new Error("Not found");
                 return res.json();
@@ -147,8 +191,8 @@ function RecipeDetail() {
 
     // --- BRING LINK LOGIK ---
     const recipeSourceUrl = window.location.hostname === 'localhost'
-        ? encodeURIComponent(`http://127.0.0.1:8000/r/${recipe.id}`)
-        : encodeURIComponent(`${window.location.origin}/r/${recipe.id}`);
+        ? encodeURIComponent(`http://127.0.0.1:8000/r/${recipe.public_id}`)
+        : encodeURIComponent(`${window.location.origin}/r/${recipe.public_id}`);
 
     const bringDeeplinkBase = "https://api.getbring.com/rest/bringrecipes/deeplink";
     const finalBringDeeplink = `${bringDeeplinkBase}?url=${recipeSourceUrl}&source=web&baseQuantity=4&requestedQuantity=4`;
@@ -230,14 +274,26 @@ function RecipeDetail() {
 // --- APP ROUTING WRAPPER ---
 export default function App() {
     return (
-        <Router>
-            <Routes>
-                {/* Startseite: Liste aller Rezepte */}
-                <Route path="/" element={<RecipeList />} />
+        <AuthProvider>
+            <Router>
+                <Routes>
+                    {/* Öffentliche Routen */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
 
-                {/* Detailseite: Spezifisches Rezept */}
-                <Route path="/recipe/:id" element={<RecipeDetail />} />
-            </Routes>
-        </Router>
+                    {/* Geschützte Routen */}
+                    <Route path="/" element={
+                        <ProtectedRoute>
+                            <RecipeList />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/recipe/:id" element={
+                        <ProtectedRoute>
+                            <RecipeDetail />
+                        </ProtectedRoute>
+                    } />
+                </Routes>
+            </Router>
+        </AuthProvider>
     );
 }
