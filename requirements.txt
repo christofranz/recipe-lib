@@ -5,3 +5,8 @@ psycopg2-binary
 jinja2
 requests
 beautifulsoup4
+python-jose[cryptography]
+bcrypt
+python-multipart
+python-dotenv
+alembic
