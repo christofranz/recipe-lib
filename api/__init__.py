@@ -1,0 +1,1 @@
+from .db_models import RecipeDB, UserDB # central import for alembic
