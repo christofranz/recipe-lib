@@ -1,11 +1,21 @@
 import uuid
 from pydantic import BaseModel
+from sqlalchemy import Table
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
+from typing import List, Optional
 
 
 Base = declarative_base()
+
+# Verknüpfungstabelle
+cookbook_recipe_association = Table(
+    "cookbook_recipe",
+    Base.metadata,
+    Column("cookbook_id", Integer, ForeignKey("cookbooks.id"), primary_key=True),
+    Column("recipe_id", Integer, ForeignKey("recipes.id"), primary_key=True)
+)
 
 class RecipeDB(Base):
     __tablename__ = "recipes"
@@ -23,10 +33,13 @@ class RecipeDB(Base):
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("UserDB", back_populates="recipes")
 
+    # cookbooks relationship
+    cookbooks = relationship("CookbookDB", secondary=cookbook_recipe_association, back_populates="recipes")
+
 
 class RecipeImport(BaseModel):
     url: str
-
+    cookbook_ids: Optional[List[int]] = [] # Standardmäßig leere Liste
 
 class UserDB(Base):
     __tablename__ = "users"
@@ -43,3 +56,11 @@ class UserDB(Base):
 class UserCreate(BaseModel):
     email: str
     password: str
+
+class CookbookDB(Base):
+    __tablename__ = "cookbooks"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    
+    recipes = relationship("RecipeDB", secondary=cookbook_recipe_association, back_populates="cookbooks")
