@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Register from './Register';
@@ -238,6 +238,12 @@ function RecipeDetail() {
     const [recipe, setRecipe] = useState<Recipe | null>(null);
     const { token } = useAuth(); // Token holen
 
+    const location = useLocation(); // Hook wovon der User kommt
+    const navigate = useNavigate();
+    // Prüfen, ob wir eine Information haben, woher der User kam
+    const fromPath = location.state?.from || "/";
+    const isFromCookbook = fromPath.includes("/cookbook/");
+
     useEffect(() => {
         // Fetcht jetzt das spezifische Rezept basierend auf der ID
         fetch(`/api/recipes/${id}`, {
@@ -272,9 +278,13 @@ function RecipeDetail() {
             <div className="bg-white max-w-md lg:max-w-3xl w-full rounded-2xl shadow-xl overflow-hidden relative">
 
                 {/* Zurück Button */}
-                <Link to="/" className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-3 py-1 rounded-full text-sm font-bold backdrop-blur-sm transition">
-                    &larr; Alle Rezepte
-                </Link>
+                <button
+                    onClick={() => navigate(fromPath)}
+                    className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition flex items-center gap-2"
+                >
+                    <span>&larr;</span>
+                    {isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte'}
+                </button>
 
                 <div className="h-64 relative">
                     <img src={recipe.image_url} className="w-full h-full object-cover" alt={recipe.title} />
