@@ -216,3 +216,6 @@ print(engine.url)
 ❌ Never mix Prisma + Alembic
 ❌ Never create_all() in prod
 ❌ Never autogen & deploy blindly
+
+---------
+icon converter: https://redketchup.io/icon-converter
