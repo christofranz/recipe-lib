@@ -219,7 +219,9 @@ def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_use
 # list all cookbooks of current user
 @app.get("/api/cookbooks")
 def get_cookbooks(db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
-    return db.query(CookbookDB).filter(CookbookDB.owner_id == current_user.id).all()
+    return db.query(CookbookDB).options(joinedload(CookbookDB.recipes)).filter(
+        CookbookDB.owner_id == current_user.id
+    ).all()
 
 # create cookbook for current user
 @app.post("/api/cookbooks")
