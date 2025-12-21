@@ -8,7 +8,7 @@ from alembic import context
 # Make project root importable
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from api.db_models import Base, RecipeDB, UserDB  # IMPORTANT: imports all models
+from api.db_models import Base, RecipeDB, UserDB, CookbookDB  # IMPORTANT: imports all models
 
 config = context.config
 

@@ -3,9 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate, N
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Register from './Register';
+import CookbookList from './CookbookList';
+import CookbookDetail from './CookbookDetail';
+import CookbookSelector from './CookbookSelector';
+import { authenticatedFetch } from './api';
 
 // --- TYPEN ---
-interface Recipe {
+export interface Recipe {
     id: number;
     public_id: string;
     title: string;
@@ -13,8 +17,13 @@ interface Recipe {
     image_url: string;
     ingredients_str: string; // Achten Sie darauf, ob Ihr Backend 'ingredients' (Array) oder string sendet
     instructions: string;
+    cookbooks: Cookbook[];
 }
-
+export interface Cookbook {
+    id: number;
+    name: string;
+    recipes?: Recipe[]; // Optional, wenn wir ein spezifisches Kochbuch laden
+}
 // --- HELPER: PROTECTED ROUTE ---
 // Wenn User nicht eingeloggt ist, redirect zu Login
 function ProtectedRoute({ children }: { children: JSX.Element }) {
@@ -48,36 +57,52 @@ function RecipeList() {
     // Auth Hook holen
     const { token, logout } = useAuth();
 
-    useEffect(() => {
-        fetch('/api/recipes', {
-            headers: {
-                'Authorization': `Bearer ${token}` // <--- WICHTIG
-            }
-        })
-            .then(res => res.json())
-            .then(data => setRecipes(data))
-            .catch(err => console.error("Error loading recipes:", err));
-    }, []);
+    // Cookbook list
+    const [allCookbooks, setAllCookbooks] = useState<Cookbook[]>([]);
+    const [selectedCookbookIds, setSelectedCookbookIds] = useState<number[]>([]);
 
-    // Import Handler
+    // 1. Kochbücher laden
+    useEffect(() => {
+        const loadCookbooks = async () => {
+            try {
+                const res = await authenticatedFetch('/api/cookbooks', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }, logout);
+                const data = await res.json();
+                setAllCookbooks(data);
+            } catch (err) { console.error("Error loading cookbooks:", err); }
+        };
+        if (token) loadCookbooks();
+    }, [token, logout]);
+
+    // 2. Rezepte laden
+    useEffect(() => {
+        const loadRecipes = async () => {
+            try {
+                const res = await authenticatedFetch('/api/recipes', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }, logout);
+                const data = await res.json();
+                setRecipes(data);
+            } catch (err) { console.error("Error loading recipes:", err); }
+        };
+        if (token) loadRecipes();
+    }, [token, logout]);
+
+    // 3. Import Handler (Optimiert)
     const handleImport = async () => {
         if (!importUrl) return;
         setIsImporting(true);
 
         try {
-            const response = await fetch('/api/import', {
+            const response = await authenticatedFetch('/api/import', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ url: importUrl })
-            });
-
-            if (response.status === 401) {
-                logout();
-                return;
-            }
+                body: JSON.stringify({ url: importUrl, cookbook_ids: selectedCookbookIds })
+            }, logout);
 
             if (!response.ok) {
                 const err = await response.json();
@@ -87,48 +112,93 @@ function RecipeList() {
             }
 
             const data = await response.json();
-            // Erfolgreich! Weiterleitung zur Detailseite des neuen Rezepts
             navigate(`/recipe/${data.id}`);
 
         } catch (error) {
-            console.error(error);
-            alert("Netzwerkfehler beim Importieren.");
+            // Wir prüfen hier nur auf Fehler, die nicht 401 sind (da 401 schon im Helper via logout() behandelt wurde)
+            if (!(error instanceof Error) || error.message !== "Session abgelaufen") {
+                console.error(error);
+                alert("Netzwerkfehler beim Importieren.");
+            }
             setIsImporting(false);
         }
+    };
+    const toggleSelection = (id: number) => {
+        setSelectedCookbookIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
     };
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-6xl mx-auto">
-                <Header /> {/* log out button*/}
+                <Header /> {/* Logout Button oben rechts */}
 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    {/* LINKE SEITE: Titel & Navigation */}
+                    <div>
+                        <nav className="flex gap-4 mt-2">
+                            <span className="text-green-700 font-bold border-b-2 border-green-600 pb-1 cursor-default">
+                                🏠 Rezepte
+                            </span>
+                            <Link
+                                to="/cookbooks"
+                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
+                            >
+                                📖 Kochbücher
+                            </Link>
+                        </nav>
+                    </div>
 
-                    {/* H1 links <h1 className="text-3xl font-bold text-gray-800">Meine Rezeptsammlung</h1> */}
+                    {/* RECHTE SEITE: Import & Kochbuch-Auswahl */}
+                    <div className="flex flex-col w-full md:w-auto gap-2">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Rezept URL einfügen..."
+                                className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-green-500"
+                                value={importUrl}
+                                onChange={(e) => setImportUrl(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleImport()}
+                            />
+                            <button
+                                onClick={handleImport}
+                                disabled={isImporting}
+                                className={`px-6 py-2 rounded-lg text-white font-semibold transition ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+                                    }`}
+                            >
+                                {isImporting ? 'Lade...' : 'Import'}
+                            </button>
+                        </div>
 
-
-                    {/* Import Feld rechts (auf mobilen Geräten unter der H1) */}
-                    <div className="flex w-full md:w-auto gap-2">
-                        <input
-                            type="text"
-                            placeholder="Rezept URL einfügen..."
-                            className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-green-500"
-                            value={importUrl}
-                            onChange={(e) => setImportUrl(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleImport()}
-                        />
-                        <button
-                            onClick={handleImport}
-                            disabled={isImporting}
-                            className={`px-6 py-2 rounded-lg text-white font-semibold transition ${isImporting
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-green-600 hover:bg-green-700'
-                                }`}
-                        >
-                            {isImporting ? 'Lade...' : 'Import'}
-                        </button>
+                        {/* KOCHBUCH-QUICK-SELECT (Einheitliches Design wie im Selector) */}
+                        {allCookbooks.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-1 justify-end max-w-md">
+                                <span className="text-[10px] uppercase tracking-wider text-gray-400 w-full text-right mb-1">
+                                    Direkt zu Kochbuch hinzufügen:
+                                </span>
+                                {allCookbooks.map(cb => {
+                                    const active = selectedCookbookIds.includes(cb.id);
+                                    return (
+                                        <button
+                                            key={cb.id}
+                                            type="button" // Verhindert ungewolltes Form-Submit
+                                            onClick={() => toggleSelection(cb.id)}
+                                            className={`px-3 py-1 rounded-full text-xs border transition-all shadow-sm ${active
+                                                ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
+                                                }`}
+                                        >
+                                            {cb.name} {active ? '✓' : '+'}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
+
+                <hr className="mb-10 border-gray-200" />
 
                 {/* Grid Layout für die Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -215,7 +285,10 @@ function RecipeDetail() {
 
                 <div className="p-6">
                     <p className="text-gray-600 mb-6">{recipe.description}</p>
-
+                    <CookbookSelector
+                        recipeId={recipe.id}
+                        currentCookbooks={recipe.cookbooks || []}
+                    />
                     <div className="
                         flex flex-col gap-2 
                         lg:flex-row lg:justify-between lg:items-center 
@@ -291,6 +364,12 @@ export default function App() {
                         <ProtectedRoute>
                             <RecipeDetail />
                         </ProtectedRoute>
+                    } />
+                    <Route path="/cookbooks" element={
+                        <ProtectedRoute><CookbookList /></ProtectedRoute>
+                    } />
+                    <Route path="/cookbook/:id" element={
+                        <ProtectedRoute><CookbookDetail /></ProtectedRoute>
                     } />
                 </Routes>
             </Router>

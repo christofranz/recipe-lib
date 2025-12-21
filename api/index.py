@@ -6,9 +6,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session, joinedload
 from .recipe_scraper import scrape_jsonld
-from .db_models import RecipeDB, RecipeImport, Base, UserDB, UserCreate
+from .db_models import RecipeDB, RecipeImport, Base, UserDB, UserCreate, CookbookDB
 from .login_auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
 
 
@@ -140,12 +140,20 @@ def read_recipes(db: Session = Depends(get_db), current_user: UserDB = Depends(g
     recipes = db.query(RecipeDB).filter(RecipeDB.owner_id == current_user.id).all()
     return recipes
 
-# Endpoint to get recipe details
+# Endpoint to get recipe detail including cookbooks
 @app.get("/api/recipes/{recipe_id}")
-def get_recipe_detail(recipe_id: int, db: Session = Depends(get_db)):
-    recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id).first()
+def get_recipe_detail(
+    recipe_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: UserDB = Depends(get_current_user) # Neu hinzugefügt
+):
+    recipe = db.query(RecipeDB).options(joinedload(RecipeDB.cookbooks)).filter(
+        RecipeDB.id == recipe_id,
+        RecipeDB.owner_id == current_user.id # Sicherstellen, dass es dem User gehört
+    ).first()
+    
     if not recipe:
-        raise HTTPException(status_code=404, detail="Recipe not found")
+        raise HTTPException(status_code=404, detail="Recipe not found or access denied")
     return recipe
 
 
@@ -193,9 +201,93 @@ def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_use
         instructions=scraped_data["instructions"],
         owner_id=current_user.id
     )
-    
+    # 3. Falls Cookbook IDs übergeben wurden, die Beziehung setzen
+    if item.cookbook_ids:
+        cookbooks = db.query(CookbookDB).filter(
+            CookbookDB.id.in_(item.cookbook_ids),
+            CookbookDB.owner_id == current_user.id # Sicherheit: Nur eigene Kochbücher
+        ).all()
+        new_recipe.cookbooks = cookbooks
+
     db.add(new_recipe)
     db.commit()
     db.refresh(new_recipe)
     
     return {"id": new_recipe.id, "title": new_recipe.title}
+
+# for cookbooks
+# list all cookbooks of current user
+@app.get("/api/cookbooks")
+def get_cookbooks(db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    return db.query(CookbookDB).filter(CookbookDB.owner_id == current_user.id).all()
+
+# create cookbook for current user
+@app.post("/api/cookbooks")
+def create_cookbook(data: dict, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    new_cb = CookbookDB(name=data["name"], owner_id=current_user.id)
+    db.add(new_cb)
+    db.commit()
+    return new_cb
+
+# Delete a specific cookbook
+@app.delete("/api/cookbooks/{cookbook_id}")
+def delete_cookbook(
+    cookbook_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: UserDB = Depends(get_current_user)
+):
+    # Suche das Kochbuch und stelle sicher, dass es dem User gehört
+    cookbook = db.query(CookbookDB).filter(
+        CookbookDB.id == cookbook_id, 
+        CookbookDB.owner_id == current_user.id
+    ).first()
+
+    if not cookbook:
+        raise HTTPException(status_code=404, detail="Cookbook not found or access denied")
+
+    db.delete(cookbook)
+    db.commit()
+    
+    return {"message": "Cookbook deleted successfully"}
+
+# add recipe to cookbook
+@app.post("/api/cookbooks/{cb_id}/recipes/{r_id}")
+def add_recipe_to_cookbook(cb_id: int, r_id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    cb = db.query(CookbookDB).filter(CookbookDB.id == cb_id, CookbookDB.owner_id == current_user.id).first()
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == r_id, RecipeDB.owner_id == current_user.id).first()
+    if not cb or not recipe: raise HTTPException(status_code=404)
+    
+    if recipe not in cb.recipes:
+        cb.recipes.append(recipe)
+        db.commit()
+    return {"status": "added"}
+
+# delete recipe from cookbook
+@app.delete("/api/cookbooks/{cb_id}/recipes/{r_id}")
+def remove_recipe_from_cookbook(cb_id: int, r_id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    cb = db.query(CookbookDB).filter(CookbookDB.id == cb_id, CookbookDB.owner_id == current_user.id).first()
+    recipe = next((r for r in cb.recipes if r.id == r_id), None)
+    if recipe:
+        cb.recipes.remove(recipe)
+        db.commit()
+    return {"status": "removed"}
+
+# GET details for a specific cookbook (including recipes)
+@app.get("/api/cookbooks/{cookbook_id}")
+def get_cookbook_detail(
+    cookbook_id: int, 
+    db: Session = Depends(get_db), 
+    current_user: UserDB = Depends(get_current_user)
+):
+    # Wichtig: joinedload nutzen, damit die Rezepte direkt mitgeladen werden
+    cookbook = db.query(CookbookDB).options(
+        joinedload(CookbookDB.recipes)
+    ).filter(
+        CookbookDB.id == cookbook_id,
+        CookbookDB.owner_id == current_user.id
+    ).first()
+
+    if not cookbook:
+        raise HTTPException(status_code=404, detail="Cookbook not found")
+        
+    return cookbook

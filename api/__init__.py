@@ -1,1 +1,1 @@
-from .db_models import RecipeDB, UserDB # central import for alembic
+from .db_models import RecipeDB, UserDB, CookbookDB # central import for alembic

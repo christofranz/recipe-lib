@@ -10,7 +10,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    // Beim Starten prüfen, ob schon ein Token im LocalStorage liegt
     const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 
     const login = (newToken: string) => {
@@ -21,9 +20,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const logout = () => {
         localStorage.removeItem('token');
         setToken(null);
+        // Optional: Den User hart zur Login-Seite schicken, falls er irgendwo "feststeckt"
+        window.location.href = "/login";
     };
 
-    // Hilfreich: Wir leiten isAuthenticated direkt vom Vorhandensein des Tokens ab
     const isAuthenticated = !!token;
 
     return (
