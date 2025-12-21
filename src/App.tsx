@@ -7,6 +7,7 @@ import CookbookList from './CookbookList';
 import CookbookDetail from './CookbookDetail';
 import CookbookSelector from './CookbookSelector';
 import { authenticatedFetch } from './api';
+import Header from './Header';
 
 // --- TYPEN ---
 export interface Recipe {
@@ -32,17 +33,6 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
         return <Navigate to="/login" replace />;
     }
     return children;
-}
-
-// --- KOMPONENTE: HEADER (Logout Button) ---
-function Header() {
-    const { logout } = useAuth();
-    return (
-        <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">Meine Rezeptsammlung</h1>
-            <button onClick={logout} className="text-sm text-red-600 hover:text-red-800 underline">Logout</button>
-        </div>
-    );
 }
 
 // --- KOMPONENTE 1: ÜBERSICHTSLISTE (HOME) ---
