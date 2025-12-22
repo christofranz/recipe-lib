@@ -25,6 +25,7 @@ class RecipeDB(Base):
     title = Column(String, index=True)
     description = Column(String)
     image_url = Column(String)
+    original_url = Column(String)
     # Storing ingredients as a pipe-separated string for simplicity in PoC
     # e.g. "Shrimp|Garlic|Pasta"
     ingredients_str = Column(Text) 
@@ -32,6 +33,11 @@ class RecipeDB(Base):
 
     owner_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("UserDB", back_populates="recipes")
+
+    prep_time = Column(Integer, nullable=True)    # Vorbereitungszeit in Minuten
+    cook_time = Column(Integer, nullable=True)    # Kochzeit in Minuten
+    total_time = Column(Integer, nullable=True)   # Gesamtzeit in Minuten
+    yields = Column(Integer, nullable=True)       # Anzahl der Portionen (z.B. 4)
 
     # cookbooks relationship
     cookbooks = relationship("CookbookDB", secondary=cookbook_recipe_association, back_populates="recipes")

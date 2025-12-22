@@ -189,7 +189,19 @@ def recipe_import_page(request: Request, recipe_uuid: str, db: Session = Depends
 # for recipe import
 @app.post("/api/import")
 def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    # check if recipe with this url already exists for this user
+    existing_recipe = db.query(RecipeDB).filter(
+            RecipeDB.original_url == item.url,
+            RecipeDB.owner_id == current_user.id
+        ).first()
 
+    if existing_recipe:
+        # Fehler zurückgeben
+        raise HTTPException(
+            status_code=400, 
+            detail="Recipe already imported."
+        )
+    
     scraped_data = scrape_jsonld(item.url)
 
     # In DB speichern
@@ -197,8 +209,13 @@ def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_use
         title=scraped_data["title"],
         description=scraped_data["description"],
         image_url=scraped_data["image_url"],
+        original_url=scraped_data["original_url"],
         ingredients_str=scraped_data["ingredients_str"],
         instructions=scraped_data["instructions"],
+        prep_time=scraped_data.get("prep_time"),
+        cook_time=scraped_data.get("cook_time"),
+        total_time=scraped_data.get("total_time"),
+        yields=scraped_data.get("yields"),
         owner_id=current_user.id
     )
     # 3. Falls Cookbook IDs übergeben wurden, die Beziehung setzen

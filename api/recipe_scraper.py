@@ -2,6 +2,45 @@ import json
 import requests
 from bs4 import BeautifulSoup
 from fastapi import  HTTPException
+import re
+
+
+def parse_iso_duration_to_minutes(duration_str):
+    """
+    Parse ISO 8601 duration string and convert to total minutes.
+    Example: 'P0DT0H10M' -> 10
+    """
+    if not duration_str or not isinstance(duration_str, str):
+        return None
+    
+    # Regex to match ISO 8601 duration: P[n]Y[n]M[n]DT[n]H[n]M[n]S
+    pattern = r'P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
+    match = re.match(pattern, duration_str)
+    
+    if not match:
+        return None
+    
+    years, months, days, hours, minutes, seconds = match.groups()
+    
+    # Convert to integers, defaulting to 0
+    years = int(years) if years else 0
+    months = int(months) if months else 0
+    days = int(days) if days else 0
+    hours = int(hours) if hours else 0
+    minutes = int(minutes) if minutes else 0
+    seconds = int(seconds) if seconds else 0
+    
+    # Approximate conversion (not accounting for varying month lengths, leap years, etc.)
+    total_minutes = (
+        years * 365 * 24 * 60 +  # years to minutes (approximate)
+        months * 30 * 24 * 60 +  # months to minutes (approximate)
+        days * 24 * 60 +         # days to minutes
+        hours * 60 +              # hours to minutes
+        minutes +                 # minutes
+        seconds // 60             # seconds to minutes (floor division)
+    )
+    
+    return total_minutes
 
 
 def scrape_jsonld(url: str):
@@ -98,8 +137,13 @@ def scrape_jsonld(url: str):
                     "title": title,
                     "description": description,
                     "image_url": image_url if image_url else "https://via.placeholder.com/600x400",
+                    "original_url": url,
                     "ingredients_str": ingredients_str,
-                    "instructions": instructions
+                    "instructions": instructions,
+                    "prep_time": parse_iso_duration_to_minutes(recipe_data.get("prepTime")),
+                    "cook_time": parse_iso_duration_to_minutes(recipe_data.get("cookTime")),
+                    "total_time": parse_iso_duration_to_minutes(recipe_data.get("totalTime")),
+                    "yields": int(recipe_data.get("recipeYield", 0)) if recipe_data.get("recipeYield") else None
                 }
         except json.JSONDecodeError:
             raise SyntaxError("JSON-LD found but parsing failed. Falling back to HTML.")

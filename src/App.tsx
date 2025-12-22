@@ -8,6 +8,7 @@ import CookbookDetail from './CookbookDetail';
 import CookbookSelector from './CookbookSelector';
 import { authenticatedFetch } from './api';
 import Header from './Header';
+import { TimerIcon, FireIcon, UsersIcon } from './Icons';
 
 // --- TYPEN ---
 export interface Recipe {
@@ -19,6 +20,9 @@ export interface Recipe {
     ingredients_str: string; // Achten Sie darauf, ob Ihr Backend 'ingredients' (Array) oder string sendet
     instructions: string;
     cookbooks: Cookbook[];
+    cook_time: number; // in Minuten
+    prep_time: number; // in Minuten
+    yields: number; // Anzahl der Portionen
 }
 export interface Cookbook {
     id: number;
@@ -289,6 +293,49 @@ function RecipeDetail() {
                         recipeId={recipe.id}
                         currentCookbooks={recipe.cookbooks || []}
                     />
+                    {/* Info-Leiste (Vorbereitung, Kochen, Menge) */}
+                    <div className="
+    flex flex-wrap gap-x-8 gap-y-4 
+    mb-4 border-b pb-4
+">
+                        {/* Arbeitszeit */}
+                        {recipe.prep_time > 0 && (
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <TimerIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Vorbereitung</p>
+                                    <p className="text-sm font-semibold text-gray-700">{recipe.prep_time} Min.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Kochzeit */}
+                        {recipe.cook_time > 0 && (
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-orange-50 rounded-lg text-orange-500">
+                                    <FireIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Kochen</p>
+                                    <p className="text-sm font-semibold text-gray-700">{recipe.cook_time} Min.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Menge */}
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-50 rounded-lg text-blue-500">
+                                <UsersIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Menge</p>
+                                <p className="text-sm font-semibold text-gray-700">{recipe.yields || 1} Port.</p>
+                            </div>
+                        </div>
+
+                    </div>
                     <div className="
                         flex flex-col gap-2 
                         lg:flex-row lg:justify-between lg:items-center 
@@ -340,7 +387,7 @@ function RecipeDetail() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
