@@ -241,6 +241,9 @@ def mark_as_cooked(id: int, db: Session = Depends(get_db), current_user: UserDB 
     if not recipe:
         raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
     
+    if recipe.cook_count is None:
+        recipe.cook_count = 0
+        
     recipe.cook_count += 1
     recipe.last_cooked = datetime.datetime.utcnow()
     db.commit()
