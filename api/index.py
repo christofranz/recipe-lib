@@ -1,4 +1,5 @@
 import os
+import datetime
 from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,7 +9,7 @@ from jose import JWTError, jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, joinedload
 from .recipe_scraper import scrape_jsonld
-from .db_models import RecipeDB, RecipeImport, Base, UserDB, UserCreate, CookbookDB
+from .db_models import RecipeDB, RecipeImport, RecipeUpdate, Base, UserDB, UserCreate, CookbookDB
 from .login_auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
 
 
@@ -189,7 +190,19 @@ def recipe_import_page(request: Request, recipe_uuid: str, db: Session = Depends
 # for recipe import
 @app.post("/api/import")
 def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    # check if recipe with this url already exists for this user
+    existing_recipe = db.query(RecipeDB).filter(
+            RecipeDB.original_url == item.url,
+            RecipeDB.owner_id == current_user.id
+        ).first()
 
+    if existing_recipe:
+        # Fehler zurückgeben
+        raise HTTPException(
+            status_code=400, 
+            detail="Recipe already imported."
+        )
+    
     scraped_data = scrape_jsonld(item.url)
 
     # In DB speichern
@@ -197,8 +210,13 @@ def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_use
         title=scraped_data["title"],
         description=scraped_data["description"],
         image_url=scraped_data["image_url"],
+        original_url=scraped_data["original_url"],
         ingredients_str=scraped_data["ingredients_str"],
         instructions=scraped_data["instructions"],
+        prep_time=scraped_data.get("prep_time"),
+        cook_time=scraped_data.get("cook_time"),
+        total_time=scraped_data.get("total_time"),
+        yields=scraped_data.get("yields"),
         owner_id=current_user.id
     )
     # 3. Falls Cookbook IDs übergeben wurden, die Beziehung setzen
@@ -214,6 +232,66 @@ def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_use
     db.refresh(new_recipe)
     
     return {"id": new_recipe.id, "title": new_recipe.title}
+
+
+# mark recipe as cooked
+@app.post("/api/recipes/{id}/mark-cooked")
+def mark_as_cooked(id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == id, RecipeDB.owner_id == current_user.id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+    
+    recipe.cook_count += 1
+    recipe.last_cooked = datetime.datetime.utcnow()
+    db.commit()
+    return {"cook_count": recipe.cook_count, "last_cooked": recipe.last_cooked}
+
+
+# for recipe update (rating, notes)
+@app.patch("/api/recipes/{id}")
+def update_recipe(
+    id: int, 
+    update_data: RecipeUpdate, 
+    db: Session = Depends(get_db), 
+    current_user: UserDB = Depends(get_current_user)
+):
+    # Rezept suchen und prüfen, ob es dem User gehört
+    recipe = db.query(RecipeDB).filter(
+        RecipeDB.id == id, 
+        RecipeDB.owner_id == current_user.id
+    ).first()
+    
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+
+    # Nur die Felder aktualisieren, die im Request gesendet wurden
+    if update_data.rating is not None:
+        # Validierung: Sicherstellen, dass das Rating zwischen 0 und 5 liegt
+        recipe.rating = max(0, min(5, update_data.rating))
+        
+    if update_data.notes is not None:
+        recipe.notes = update_data.notes
+
+    db.commit()
+    db.refresh(recipe)
+    
+    return recipe
+
+# Delete a specific recipe
+@app.delete("/api/recipes/{id}")
+def delete_recipe(id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    recipe = db.query(RecipeDB).filter(
+        RecipeDB.id == id, 
+        RecipeDB.owner_id == current_user.id
+    ).first()
+    
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+    
+    db.delete(recipe)
+    db.commit()
+    return {"message": "Rezept erfolgreich gelöscht"}
+
 
 # for cookbooks
 # list all cookbooks of current user

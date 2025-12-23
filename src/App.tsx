@@ -8,6 +8,7 @@ import CookbookDetail from './CookbookDetail';
 import CookbookSelector from './CookbookSelector';
 import { authenticatedFetch } from './api';
 import Header from './Header';
+import { TimerIcon, FireIcon, UsersIcon } from './Icons';
 
 // --- TYPEN ---
 export interface Recipe {
@@ -19,6 +20,13 @@ export interface Recipe {
     ingredients_str: string; // Achten Sie darauf, ob Ihr Backend 'ingredients' (Array) oder string sendet
     instructions: string;
     cookbooks: Cookbook[];
+    cook_time: number; // in Minuten
+    prep_time: number; // in Minuten
+    yields: number; // Anzahl der Portionen
+    notes: string; // Persönliche Notizen
+    rating: number; // 0 bis 5 Sterne
+    cook_count: number; // Wie oft gekocht
+    last_cooked: string | null; // ISO Datum des letzten Kochens
 }
 export interface Cookbook {
     id: number;
@@ -50,6 +58,7 @@ function RecipeList() {
     // Cookbook list
     const [allCookbooks, setAllCookbooks] = useState<Cookbook[]>([]);
     const [selectedCookbookIds, setSelectedCookbookIds] = useState<number[]>([]);
+
 
     // 1. Kochbücher laden
     useEffect(() => {
@@ -226,26 +235,49 @@ function RecipeList() {
 function RecipeDetail() {
     const { id } = useParams(); // Holt die ID aus der URL
     const [recipe, setRecipe] = useState<Recipe | null>(null);
-    const { token } = useAuth(); // Token holen
+    const { token, logout } = useAuth();
 
     const location = useLocation(); // Hook wovon der User kommt
     const navigate = useNavigate();
+
+
+    // Bewertung & Notizen States
+    const [rating, setRating] = useState(0);
+    const [notes, setNotes] = useState("");
+
     // Prüfen, ob wir eine Information haben, woher der User kam
     const fromPath = location.state?.from || "/";
     const isFromCookbook = fromPath.includes("/cookbook/");
 
     useEffect(() => {
-        // Fetcht jetzt das spezifische Rezept basierend auf der ID
-        fetch(`/api/recipes/${id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-            .then(res => {
-                if (!res.ok) throw new Error("Not found");
-                return res.json();
-            })
-            .then(data => setRecipe(data))
-            .catch(err => console.error(err));
-    }, [id]);
+        const loadRecipe = async () => {
+            try {
+                const res = await authenticatedFetch(`/api/recipes/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }, logout);
+
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        console.error("Rezept nicht gefunden");
+                        // Optional: Hier könntest du auf eine 404-Seite umleiten
+                    }
+                    throw new Error("Fehler beim Laden");
+                }
+
+                const data = await res.json();
+                setRecipe(data);
+                setRating(data.rating || 0);
+                setNotes(data.notes || "");
+            } catch (err) {
+                console.error("Error loading recipe:", err);
+            }
+        };
+
+        // Nur ausführen, wenn ID und Token vorhanden sind
+        if (id && token) {
+            loadRecipe();
+        }
+    }, [id, token, logout]);
 
     if (!recipe) return <div className="p-10 text-center text-xl">Lade Rezept...</div>;
 
@@ -262,6 +294,66 @@ function RecipeDetail() {
 
     const bringDeeplinkBase = "https://api.getbring.com/rest/bringrecipes/deeplink";
     const finalBringDeeplink = `${bringDeeplinkBase}?url=${recipeSourceUrl}&source=web&baseQuantity=4&requestedQuantity=4`;
+
+    const saveUpdate = async (fields: { rating?: number; notes?: string }) => {
+        try {
+            await authenticatedFetch(`/api/recipes/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(fields)
+            }, logout);
+            // Optional: Hier könntest du eine Erfolgsmeldung anzeigen ("Gespeichert!")
+        } catch (err) {
+            console.error("Fehler beim Speichern:", err);
+        }
+    };
+
+    const handleBringClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
+
+        try {
+            // HIER FEHLTE DAS TOKEN:
+            const res = await authenticatedFetch(`/api/recipes/${id}/mark-cooked`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}` // <--- Das muss rein!
+                }
+            }, logout);
+
+            if (res.ok) {
+                const data = await res.json();
+                setRecipe(prev => prev ? {
+                    ...prev,
+                    cook_count: data.cook_count,
+                    last_cooked: data.last_cooked
+                } : null);
+            }
+        } catch (err) {
+            console.error("Fehler beim Markieren als gekocht:", err);
+        } finally {
+            window.open(finalBringDeeplink, "_blank", "noopener,noreferrer");
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!window.confirm("Möchtest du dieses Rezept wirklich dauerhaft löschen?")) return;
+
+        try {
+            const res = await authenticatedFetch(`/api/recipes/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }, logout);
+
+            if (res.ok) {
+                // Nach dem Löschen zurück zur Übersicht
+                navigate('/');
+            }
+        } catch (err) {
+            console.error("Fehler beim Löschen:", err);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -283,12 +375,115 @@ function RecipeDetail() {
                     </div>
                 </div>
 
+                {/* Der Löschen-Button */}
+                <button
+                    onClick={handleDelete}
+                    className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-red-50 backdrop-blur-sm text-gray-500 hover:text-red-600 rounded-full shadow-lg transition-all duration-200 group"
+                    title="Rezept löschen"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                </button>
+
                 <div className="p-6">
+                    {recipe.last_cooked && (
+                        <p className="text-xs text-gray-400 mb-4">
+                            Zuletzt gekocht am {new Date(recipe.last_cooked).toLocaleDateString('de-DE')}
+                        </p>
+                    )}
                     <p className="text-gray-600 mb-6">{recipe.description}</p>
                     <CookbookSelector
                         recipeId={recipe.id}
                         currentCookbooks={recipe.cookbooks || []}
                     />
+                    {/* Info-Leiste (Vorbereitung, Kochen, Menge) */}
+                    <div className="
+                            flex flex-wrap gap-x-8 gap-y-4 
+                            mb-4 border-b pb-4
+                        ">
+                        {/* Arbeitszeit */}
+                        {recipe.prep_time > 0 && (
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
+                                    <TimerIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Vorbereitung</p>
+                                    <p className="text-sm font-semibold text-gray-700">{recipe.prep_time} Min.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Kochzeit */}
+                        {recipe.cook_time > 0 && (
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-orange-50 rounded-lg text-orange-500">
+                                    <FireIcon className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Kochen</p>
+                                    <p className="text-sm font-semibold text-gray-700">{recipe.cook_time} Min.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Menge */}
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-50 rounded-lg text-blue-500">
+                                <UsersIcon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Menge</p>
+                                <p className="text-sm font-semibold text-gray-700">{recipe.yields || 1} Port.</p>
+                            </div>
+                        </div>
+                        {/* Sterne Bewertung */}
+                        <div className="flex items-center gap-2 mb-4">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    onClick={() => { setRating(star); saveUpdate({ rating: star }); }}
+                                    className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                                >
+                                    ★
+                                </button>
+                            ))}
+                            <span className="text-sm text-gray-500 ml-2">({recipe.cook_count}x gekocht)</span>
+                        </div>
+                        {/* Notizen Bereich */}
+                        <div className="mb-8 w-full">
+                            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-2">
+                                Persönliche Notizen
+                            </p>
+
+                            <textarea
+                                className="
+            w-full 
+            p-3
+            text-sm 
+            rounded-lg 
+            border
+            bg-white 
+            text-gray-800 
+            border-gray-200
+            placeholder-gray-400
+            focus:border-green-500 
+            focus:ring-1 
+            focus:ring-green-500
+            outline-none
+            overflow-hidden
+            resize-none
+        "
+                                /* Dynamische Zeilenanzahl: Mindestens 2, sonst Anzahl der Umbrüche + 1 */
+                                rows={Math.max(2, notes.split('\n').length)}
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                onBlur={() => saveUpdate({ notes })}
+                                placeholder="Notizen hinzufügen..."
+                            />
+                        </div>
+                    </div>
                     <div className="
                         flex flex-col gap-2 
                         lg:flex-row lg:justify-between lg:items-center 
@@ -297,11 +492,9 @@ function RecipeDetail() {
                         <h2 className="font-bold text-lg">Zutaten</h2>
 
                         <div className="w-full lg:w-auto flex justify-start">
-                            <a
-                                href={finalBringDeeplink}
-                                target="_blank"
-                                rel="nofollow noopener"
-                                className="bring-recipe-button w-auto"
+                            <button
+                                onClick={handleBringClick}
+                                className="bring-recipe-button w-auto flex items-center gap-2 cursor-pointer"
                             >
                                 <img
                                     src="data:image/svg+xml,%3csvg%20width='18'%20height='25'%20viewBox='0%200%2018%2025'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M11.5419%204.43201L13.1396%204.35939C13.1396%204.35939%2013.1396%202.61644%2012.9944%202.4712C12.8491%202.25333%2011.8324%201.16399%2011.1788%200.94612C10.5978%200.873497%209.36321%201.30923%209.14534%201.38186C9.14534%201.38186%209.07272%201.38186%209.07272%201.45448C8.92748%201.67235%208.20125%202.68907%208.12863%203.1248C7.98338%203.41529%207.83813%204.50463%207.83813%204.50463H8.56436H9.0001C9.0001%204.50463%209.14534%202.76169%209.07272%202.68907C9.72633%202.61644%2010.6704%202.39858%2011.1062%202.54382C11.324%202.54382%2011.5419%204.43201%2011.5419%204.43201Z'%20fill='white'/%3e%3cpath%20d='M3.98901%204.64975L5.29622%204.57713C5.29622%204.57713%205.2236%202.83418%205.51409%202.47107C6.02245%202.2532%206.45819%202.18058%206.89392%202.10795C7.32966%202.10795%208.34638%201.96271%208.34638%202.18058C8.419%202.39845%208.49162%203.56041%208.49162%204.43188C9.72621%204.43188%209.72621%204.43188%209.72621%204.43188L9.43572%201.96271C9.43572%201.96271%208.49162%200.582877%208.12851%200.510254C7.91064%200.510254%207.54753%200.510254%206.74868%200.728122C5.94983%200.945991%205.58671%201.09124%205.58671%201.09124%205.15098%201.3091%204.71524%202.03533C4.20688%202.68894%204.13426%202.83418%204.13426%202.83418C4.13426%202.83418%203.98901%203.8509%203.98901%204.64975Z'%20fill='white'/%3e%3cpath%20d='M0.140011%2022.2971C0.140011%2022.2971%200.64837%2022.5876%201.59247%2022.8054C2.53656%2023.0233%2012.6311%2024.9841%2013.43%2024.4031C13.43%2023.3138%2013.0669%204.28662%2013.0669%204.28662C13.0669%204.28662%201.3746%204.43187%200.93886%204.72236C0.93886%204.72236%200.866238%204.79498%200.793616%204.94023C0.720993%205.08547%200.64837%205.37596%200.64837%205.66645C0.575747%207.4094%200.430501%2011.1132%200.285256%2014.5991C0.0673876%2018.5207%20-0.15048%2022.0792%200.140011%2022.2971Z'%20fill='white'/%3e%3cpath%20d='M13.4299%2024.4031C13.4299%2024.4031%2017.2063%2021.9339%2017.4241%2021.2803C17.3515%2020.1184%2016.9158%204.72236%2016.48%204.64973C16.0443%204.43187%2013.0668%204.28662%2013.0668%204.28662L13.4299%2024.4031Z'%20fill='%234FABA2'/%3e%3cpath%20d='M3.3354%2012.6381L5.65933%2014.381L10.0167%208.78906L11.6144%2010.1689L5.80457%2017.7217L1.95557%2014.3084L3.3354%2012.6381Z'%20fill='%2324A599'/%3e%3c/svg%3e"
@@ -309,7 +502,7 @@ function RecipeDetail() {
                                     className="w-4 h-4"
                                 />
                                 <span>Auf die Einkaufsliste setzen</span>
-                            </a>
+                            </button>
                         </div>
                     </div>
 
@@ -340,7 +533,7 @@ function RecipeDetail() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 
