@@ -277,6 +277,21 @@ def update_recipe(
     
     return recipe
 
+# Delete a specific recipe
+@app.delete("/api/recipes/{id}")
+def delete_recipe(id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    recipe = db.query(RecipeDB).filter(
+        RecipeDB.id == id, 
+        RecipeDB.owner_id == current_user.id
+    ).first()
+    
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden")
+    
+    db.delete(recipe)
+    db.commit()
+    return {"message": "Rezept erfolgreich gelöscht"}
+
 
 # for cookbooks
 # list all cookbooks of current user
