@@ -230,7 +230,7 @@ function RecipeList() {
 function RecipeDetail() {
     const { id } = useParams(); // Holt die ID aus der URL
     const [recipe, setRecipe] = useState<Recipe | null>(null);
-    const { token } = useAuth(); // Token holen
+    const { token, logout } = useAuth();
 
     const location = useLocation(); // Hook wovon der User kommt
     const navigate = useNavigate();
@@ -239,17 +239,32 @@ function RecipeDetail() {
     const isFromCookbook = fromPath.includes("/cookbook/");
 
     useEffect(() => {
-        // Fetcht jetzt das spezifische Rezept basierend auf der ID
-        fetch(`/api/recipes/${id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-            .then(res => {
-                if (!res.ok) throw new Error("Not found");
-                return res.json();
-            })
-            .then(data => setRecipe(data))
-            .catch(err => console.error(err));
-    }, [id]);
+        const loadRecipe = async () => {
+            try {
+                const res = await authenticatedFetch(`/api/recipes/${id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }, logout);
+
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        console.error("Rezept nicht gefunden");
+                        // Optional: Hier könntest du auf eine 404-Seite umleiten
+                    }
+                    throw new Error("Fehler beim Laden");
+                }
+
+                const data = await res.json();
+                setRecipe(data);
+            } catch (err) {
+                console.error("Error loading recipe:", err);
+            }
+        };
+
+        // Nur ausführen, wenn ID und Token vorhanden sind
+        if (id && token) {
+            loadRecipe();
+        }
+    }, [id, token, logout]);
 
     if (!recipe) return <div className="p-10 text-center text-xl">Lade Rezept...</div>;
 
