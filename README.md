@@ -140,6 +140,7 @@ Migrations must be incremental and reversible.
 
 3️⃣ Example: migrating recipes → users ownership (SAFE)
 Step A — generate migration
+HINT: Make sure that prod postgresulr is set in env variables!!!!!
 alembic revision --autogenerate -m "add users and recipe owner"
 
 Step B — MANUALLY FIX the migration which is in alembic/versions/...migration.py
