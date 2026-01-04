@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
@@ -59,6 +59,7 @@ function RecipeList() {
     const [allCookbooks, setAllCookbooks] = useState<Cookbook[]>([]);
     const [selectedCookbookIds, setSelectedCookbookIds] = useState<number[]>([]);
 
+    const location = useLocation();
 
     // 1. Kochbücher laden
     useEffect(() => {
@@ -72,21 +73,27 @@ function RecipeList() {
             } catch (err) { console.error("Error loading cookbooks:", err); }
         };
         if (token) loadCookbooks();
-    }, [token, logout]);
+    }, [token, logout, location.key]);
 
     // 2. Rezepte laden
-    useEffect(() => {
-        const loadRecipes = async () => {
-            try {
-                const res = await authenticatedFetch('/api/recipes', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }, logout);
-                const data = await res.json();
-                setRecipes(data);
-            } catch (err) { console.error("Error loading recipes:", err); }
-        };
-        if (token) loadRecipes();
+    const loadRecipes = useCallback(async () => {
+        if (!token) return;
+        try {
+            console.log("Lade Rezepte neu..."); // Zum Debuggen im Browser
+            const res = await authenticatedFetch('/api/recipes', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }, logout);
+            const data = await res.json();
+            setRecipes(data);
+        } catch (err) {
+            console.error("Error loading recipes:", err);
+        }
     }, [token, logout]);
+
+    // Dieser Effekt feuert jetzt garantiert bei jedem Seitenwechsel
+    useEffect(() => {
+        loadRecipes();
+    }, [loadRecipes, location.pathname]);
 
     // 3. Import Handler (Optimiert)
     const handleImport = async () => {
