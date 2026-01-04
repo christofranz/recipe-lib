@@ -132,6 +132,15 @@ def scrape_jsonld(url: str):
                         
                 instructions = "\n\n".join(lines) # Füge Leerzeilen zwischen den Schritten ein
 
+                if recipe_data.get('recipeYield'):
+                    yields = recipe_data.get('recipeYield', 0)
+                    try:
+                        yields = int(yields)
+                    except ValueError:
+                        yields = int(yields.split(" ")[0])
+                else:
+                    yields = None
+
                 # Rückgabe der sauberen JSON-Daten
                 return {
                     "title": title,
@@ -143,7 +152,7 @@ def scrape_jsonld(url: str):
                     "prep_time": parse_iso_duration_to_minutes(recipe_data.get("prepTime")),
                     "cook_time": parse_iso_duration_to_minutes(recipe_data.get("cookTime")),
                     "total_time": parse_iso_duration_to_minutes(recipe_data.get("totalTime")),
-                    "yields": int(recipe_data.get("recipeYield", 0)) if recipe_data.get("recipeYield") else None
+                    "yields": yields
                 }
         except json.JSONDecodeError:
             raise SyntaxError("JSON-LD found but parsing failed. Falling back to HTML.")
