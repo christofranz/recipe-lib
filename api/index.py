@@ -138,7 +138,7 @@ def startup():
 @app.get("/api/recipes")
 def read_recipes(db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
     # only recipes of the logged in user
-    recipes = db.query(RecipeDB).filter(RecipeDB.owner_id == current_user.id).all()
+    recipes = db.query(RecipeDB).filter(RecipeDB.owner_id == current_user.id).order_by(RecipeDB.id.desc()).all()
     return recipes
 
 # Endpoint to get recipe detail including cookbooks
