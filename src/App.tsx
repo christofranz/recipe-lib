@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Register from './Register';
 import CookbookList from './CookbookList';
+import ImportPage from './Import';
 import CookbookDetail from './CookbookDetail';
 import CookbookSelector from './CookbookSelector';
 import { authenticatedFetch } from './api';
@@ -61,6 +62,15 @@ function RecipeList() {
 
     const location = useLocation();
 
+    // Such-Query State
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Filter-Logik: Sucht im Titel und in der Beschreibung
+    const filteredRecipes = recipes.filter(recipe =>
+        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     // 1. Kochbücher laden
     useEffect(() => {
         const loadCookbooks = async () => {
@@ -95,46 +105,6 @@ function RecipeList() {
         loadRecipes();
     }, [loadRecipes, location.pathname]);
 
-    // 3. Import Handler (Optimiert)
-    const handleImport = async () => {
-        if (!importUrl) return;
-        setIsImporting(true);
-
-        try {
-            const response = await authenticatedFetch('/api/import', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ url: importUrl, cookbook_ids: selectedCookbookIds })
-            }, logout);
-
-            if (!response.ok) {
-                const err = await response.json();
-                alert("Fehler beim Import: " + (err.detail || "Unbekannter Fehler"));
-                setIsImporting(false);
-                return;
-            }
-
-            const data = await response.json();
-            navigate(`/recipe/${data.id}`);
-
-        } catch (error) {
-            // Wir prüfen hier nur auf Fehler, die nicht 401 sind (da 401 schon im Helper via logout() behandelt wurde)
-            if (!(error instanceof Error) || error.message !== "Session abgelaufen") {
-                console.error(error);
-                alert("Netzwerkfehler beim Importieren.");
-            }
-            setIsImporting(false);
-        }
-    };
-    const toggleSelection = (id: number) => {
-        setSelectedCookbookIds(prev =>
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-        );
-    };
-
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-6xl mx-auto">
@@ -153,62 +123,50 @@ function RecipeList() {
                             >
                                 📖 Kochbücher
                             </Link>
-                        </nav>
-                    </div>
-
-                    {/* RECHTE SEITE: Import & Kochbuch-Auswahl */}
-                    <div className="flex flex-col w-full md:w-auto gap-2">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="Rezept URL einfügen..."
-                                className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-80 focus:outline-none focus:ring-2 focus:ring-green-500"
-                                value={importUrl}
-                                onChange={(e) => setImportUrl(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleImport()}
-                            />
-                            <button
-                                onClick={handleImport}
-                                disabled={isImporting}
-                                className={`px-6 py-2 rounded-lg text-white font-semibold transition ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
-                                    }`}
+                            <Link
+                                to="/import"
+                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
                             >
-                                {isImporting ? 'Lade...' : 'Import'}
-                            </button>
-                        </div>
-
-                        {/* KOCHBUCH-QUICK-SELECT (Einheitliches Design wie im Selector) */}
-                        {allCookbooks.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-1 justify-end max-w-md">
-                                <span className="text-[10px] uppercase tracking-wider text-gray-400 w-full text-right mb-1">
-                                    Direkt zu Kochbuch hinzufügen:
-                                </span>
-                                {allCookbooks.map(cb => {
-                                    const active = selectedCookbookIds.includes(cb.id);
-                                    return (
-                                        <button
-                                            key={cb.id}
-                                            type="button" // Verhindert ungewolltes Form-Submit
-                                            onClick={() => toggleSelection(cb.id)}
-                                            className={`px-3 py-1 rounded-full text-xs border transition-all shadow-sm ${active
-                                                ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                                : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
-                                                }`}
-                                        >
-                                            {cb.name} {active ? '✓' : '+'}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
+                                📥 Import
+                            </Link>
+                        </nav>
                     </div>
                 </div>
 
-                <hr className="mb-10 border-gray-200" />
+                <hr className="mb-3 border-gray-200" />
+
+                {/* SUCHBEREICH (Dezent unter der Linie) */}
+                <div className="flex justify-between items-center mb-3">
+                    <div className="relative w-full max-w-xs">
+                        <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="In deinen Rezepten suchen..."
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all outline-none"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Optional: Anzeige der Trefferanzahl */}
+                    {searchQuery.length > 0 && (
+                        <span className="text-[11px] text-green-600 font-bold uppercase tracking-wider animate-fadeIn">
+                            {filteredRecipes.length} {filteredRecipes.length === 1 ? 'Treffer' : 'Treffer'} gefunden
+                        </span>
+                    )}
+                </div>
 
                 {/* Grid Layout für die Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {recipes.map((recipe) => (
+                    {filteredRecipes.map((recipe) => (
                         <Link key={recipe.id} to={`/recipe/${recipe.id}`} className="group">
                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
                                 <div className="h-48 overflow-hidden">
@@ -230,7 +188,7 @@ function RecipeList() {
                     ))}
                 </div>
 
-                {recipes.length === 0 && (
+                {filteredRecipes.length === 0 && (
                     <p className="text-center text-gray-500 mt-10">Keine Rezepte gefunden. Importiere dein erstes Rezept!</p>
                 )}
             </div>
@@ -571,6 +529,7 @@ export default function App() {
                     <Route path="/cookbook/:id" element={
                         <ProtectedRoute><CookbookDetail /></ProtectedRoute>
                     } />
+                    <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
                 </Routes>
             </Router>
         </AuthProvider>
