@@ -86,6 +86,12 @@ export default function CookbookList() {
                             <span className="text-green-700 font-bold border-b-2 border-green-600 pb-1 cursor-default">
                                 📖 Kochbücher
                             </span>
+                            <Link
+                                to="/import"
+                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
+                            >
+                                📥 Import
+                            </Link>
                         </nav>
                     </div>
 
@@ -107,7 +113,7 @@ export default function CookbookList() {
                     </div>
                 </div>
 
-                <hr className="mb-10 border-gray-200" />
+                <hr className="mb-3 border-gray-200" />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {cookbooks.map((cb) => (

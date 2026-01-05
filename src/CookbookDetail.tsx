@@ -11,6 +11,15 @@ export default function CookbookDetail() {
     const [cookbook, setCookbook] = useState<Cookbook | null>(null);
     const { token, logout } = useAuth();
 
+    // 1. Such-Query State
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // 2. Filter-Logik: Greift auf cookbook.recipes zu
+    const filteredRecipes = cookbook?.recipes ? cookbook.recipes.filter(recipe =>
+        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) : [];
+
     useEffect(() => {
         const loadCookbookData = async () => {
             try {
@@ -53,6 +62,12 @@ export default function CookbookDetail() {
                             >
                                 📖 Kochbücher
                             </Link>
+                            <Link
+                                to="/import"
+                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
+                            >
+                                📥 Import
+                            </Link>
                         </nav>
                     </div>
 
@@ -67,12 +82,40 @@ export default function CookbookDetail() {
                     </div>
                 </div>
 
-                <hr className="mb-10 border-gray-200" />
+                <hr className="mb-3 border-gray-200" />
+
+                {/* SUCHBEREICH (Dezent unter der Linie) */}
+                <div className="flex justify-between items-center mb-3">
+                    <div className="relative w-full max-w-xs">
+                        <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="In deinen Rezepten suchen..."
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all outline-none"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+
+                    {searchQuery.length > 0 && (
+                        <span className="text-[11px] text-green-600 font-bold uppercase tracking-wider animate-fadeIn">
+                            {filteredRecipes.length} {filteredRecipes.length === 1 ? 'Treffer' : 'Treffer'} gefunden
+                        </span>
+                    )}
+                </div>
 
                 {/* Grid Layout für die Karten (Exakte Kopie) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {cookbook.recipes && cookbook.recipes.length > 0 ? (
-                        cookbook.recipes.map((recipe) => (
+                        filteredRecipes.map((recipe) => (
                             <Link key={recipe.id} to={`/recipe/${recipe.id}`} state={{ from: window.location.pathname }} className="group">
                                 <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
                                     <div className="h-48 overflow-hidden">
