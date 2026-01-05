@@ -8,7 +8,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, joinedload
-from .recipe_scraper import scrape_jsonld
+from .recipe_scraper import scrape_jsonld, scrape_tk_recipe
 from .db_models import RecipeDB, RecipeImport, RecipeUpdate, Base, UserDB, UserCreate, CookbookDB
 from .login_auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
 
@@ -203,7 +203,10 @@ def import_recipe(item: RecipeImport, db: Session = Depends(get_db), current_use
             detail="Recipe already imported."
         )
     
-    scraped_data = scrape_jsonld(item.url)
+    if "tk.de" in item.url:
+        scraped_data = scrape_tk_recipe(item.url)
+    else:
+        scraped_data = scrape_jsonld(item.url)
 
     # In DB speichern
     new_recipe = RecipeDB(
