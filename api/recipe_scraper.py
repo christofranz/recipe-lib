@@ -156,3 +156,127 @@ def scrape_jsonld(url: str):
                 }
         except json.JSONDecodeError:
             raise SyntaxError("JSON-LD found but parsing failed. Falling back to HTML.")
+
+
+def scrape_tk_recipe(url):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    # 1. Titel (aus h1 oder Meta-Tags)
+    title_tag = soup.find('h1') or soup.find('meta', property='og:title')
+    title = title_tag.get_text(strip=True) if title_tag.name == 'h1' else title_tag['content'].split(' - ')[0]
+    title = title.replace("One-Pot-Rezept: ", "")
+
+    # 2. Bild
+    img_tag = soup.find('meta', property='og:image')
+    image_url = img_tag['content'] if img_tag else ""
+
+    def extract_list_after_id(anchor_id_pattern):
+        # 1. Finde die Headline über die ID (Regex für Flexibilität)
+        headline = soup.find('tkds-headline', id=re.compile(anchor_id_pattern))
+        
+        if not headline:
+            return []
+            
+        # 2. Suche die unmittelbar nächste Textliste
+        text_list = headline.find_next('tkds-textlist')
+        if text_list:
+            items = text_list.find_all('tkds-textlist-item')
+            # Extrahiere den reinen Text und säubere ihn
+            return [item.get_text(strip=True).replace('\xa0', ' ') for item in items if item.get_text(strip=True)]
+        return []
+
+    # Zutaten auslesen (ID beginnt mit zutaten-fuer)
+    def clean_units(text):
+        # Mapping von ausgeschriebenen Wörtern zu Bring!-kompatiblen Kürzeln
+        units_map = {
+            r'\bGramm\b': 'g',
+            r'\bMilliliter\b': 'ml',
+            r'\bEsslöffel\b': 'EL',
+            r'\bTeelöffel\b': 'TL',
+            r'\bStück\b': 'Stk',
+            r'\bPackung\b': 'Pck',
+            r'\bPrise\b': 'Prise',
+        }
+        
+        for full_unit, short_unit in units_map.items():
+            # re.IGNORECASE sorgt dafür, dass auch "gramm" oder "GRAMM" gefunden wird
+            text = re.sub(full_unit, short_unit, text, flags=re.IGNORECASE)
+        
+        # Optional: Doppelte Leerzeichen entfernen, die durch Ersetzungen entstehen könnten
+        return text.strip().replace('  ', ' ')
+
+    # Anwendung in der Scraper-Funktion:
+    ingredients_raw = extract_list_after_id(r'^zutaten-fuer')
+    # Jede Zutat durch die Reinigungs-Funktion jagen
+    ingredients_clean = [clean_units(item) for item in ingredients_raw]
+    ingredients_str = "|".join(ingredients_clean)
+    
+    # Zubereitung auslesen (ID ist exakt zubereitung)
+    instructions_raw = extract_list_after_id(r'^zubereitung$')
+    # 2. Erstelle die 'lines' Liste (identisch zu deinem Logik-Ziel)
+    lines = []
+    for item in instructions_raw:
+        if isinstance(item, str) and item.strip():
+            # Wir fügen hier KEINE Nummern (1., 2.) hinzu, 
+            # das macht dein Frontend oder die spätere Formatierung meist selbst
+            lines.append(item.strip())
+
+    # 3. Finaler String (exakt wie in deinem Snippet)
+    instructions = "\n\n".join(lines)
+
+    # Zeit
+    time_element = soup.find('tkds-text', string=re.compile(r'Zubereitungszeit:'))
+    
+    prep_time = None
+    if time_element:
+        time_text = time_element.get_text(strip=True) # "Zubereitungszeit: ungefähr 25 Minuten"
+        
+        # 2. Nutze Regex, um nur die Zahl zu finden
+        match = re.search(r'(\d+)', time_text)
+        if match:
+            prep_time = int(match.group(1))
+
+    # Beschreibung
+    description = ""
+    teaser_element = soup.select_one('tkds-text.article-header__teasertext')
+    if teaser_element:
+        # Wir bereinigen den Text von &nbsp; und überflüssigen Whitespaces
+        description = teaser_element.get_text(strip=True).replace('\xa0', ' ')
+
+    # Anzahl
+    yields = 1  # Default-Wert
+
+    # 1. Suche die Zutaten-Headline
+    ing_headline = soup.find('tkds-headline', id=re.compile(r'^zutaten-fuer'))
+
+    if ing_headline:
+        # Hol dir die ID (z.B. "zutaten-fuer-2-personen")
+        anchor_id = ing_headline.get('id', '')
+        
+        # Suche nach der ersten Zahl in der ID
+        yield_match = re.search(r'(\d+)', anchor_id)
+        if yield_match:
+            yields = int(yield_match.group(1))
+        else:
+            # Fallback: Suche im sichtbaren Text der Headline, falls die ID keine Zahl hat
+            text_match = re.search(r'(\d+)', ing_headline.get_text())
+            if text_match:
+                yields = int(text_match.group(1))
+
+    return {
+        "title": title,
+        "description": description,
+        "image_url": image_url,
+        "original_url": url,
+        "ingredients_str": ingredients_str,
+        "instructions": instructions,
+        "prep_time": prep_time,
+        "cook_time": None,
+        "total_time": prep_time,
+        "yields": yields
+    }
