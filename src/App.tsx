@@ -61,6 +61,15 @@ function RecipeList() {
 
     const location = useLocation();
 
+    // Such-Query State
+    const [searchQuery, setSearchQuery] = useState("");
+
+    // Filter-Logik: Sucht im Titel und in der Beschreibung
+    const filteredRecipes = recipes.filter(recipe =>
+        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     // 1. Kochbücher laden
     useEffect(() => {
         const loadCookbooks = async () => {
@@ -204,11 +213,38 @@ function RecipeList() {
                     </div>
                 </div>
 
-                <hr className="mb-10 border-gray-200" />
+                <hr className="mb-3 border-gray-200" />
+
+                {/* SUCHBEREICH (Dezent unter der Linie) */}
+                <div className="flex justify-between items-center mb-3">
+                    <div className="relative w-full max-w-xs">
+                        <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
+                        <input
+                            type="text"
+                            placeholder="In deinen Rezepten suchen..."
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all outline-none"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery("")}
+                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Optional: Anzeige der Trefferanzahl */}
+                    <span className="text-xs text-gray-500 font-medium">
+                        {filteredRecipes.length} Rezepte gefunden
+                    </span>
+                </div>
 
                 {/* Grid Layout für die Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {recipes.map((recipe) => (
+                    {filteredRecipes.map((recipe) => (
                         <Link key={recipe.id} to={`/recipe/${recipe.id}`} className="group">
                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
                                 <div className="h-48 overflow-hidden">
@@ -230,7 +266,7 @@ function RecipeList() {
                     ))}
                 </div>
 
-                {recipes.length === 0 && (
+                {filteredRecipes.length === 0 && (
                     <p className="text-center text-gray-500 mt-10">Keine Rezepte gefunden. Importiere dein erstes Rezept!</p>
                 )}
             </div>
