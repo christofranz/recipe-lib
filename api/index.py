@@ -9,7 +9,7 @@ from jose import JWTError, jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session, joinedload
 from .recipe_scraper import scrape_jsonld, scrape_tk_recipe
-from .db_models import RecipeDB, RecipeImport, RecipeUpdate, Base, UserDB, UserCreate, CookbookDB
+from .db_models import RecipeDB, RecipeImport, RecipeShare, RecipeUpdate, Base, UserDB, UserCreate, CookbookDB
 from .login_auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
 
 
@@ -32,6 +32,8 @@ else:
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# get prod url from env or set localhost
+PROD_URL = os.getenv("PROD_URL", "http://localhost:8000")
 
 # --- 2. APP SETUP ---
 
@@ -377,3 +379,83 @@ def get_cookbook_detail(
         raise HTTPException(status_code=404, detail="Cookbook not found")
         
     return cookbook
+
+
+@app.post("/api/recipes/{recipe_id}/share")
+def create_share_link(recipe_id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    # 1. Prüfen, ob das Rezept existiert und dem User gehört
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id, RecipeDB.owner_id == current_user.id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Rezept nicht gefunden oder kein Zugriff")
+
+    # 2. Bestehenden Share-Link suchen oder neuen erstellen
+    share = RecipeShare(
+        recipe_id=recipe_id,
+        creator_id=current_user.id
+    )
+    db.add(share)
+    db.commit()
+
+    # 3. Den Link zurückgeben (Frontend-URL)
+    return {"share_token": share.id, "share_url": f"{PROD_URL}/accept-share/{share.id}"}
+
+
+@app.post("/api/shares/accept/{token}")
+def accept_share(token: str, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    # 1. Share-Eintrag finden
+    share = db.query(RecipeShare).filter(RecipeShare.id == token).first()
+    
+    if not share:
+        raise HTTPException(status_code=404, detail="Ungültiger oder abgelaufener Link")
+
+    if share.expires_at < datetime.datetime.utcnow():
+        db.delete(share)
+        db.commit()
+        raise HTTPException(status_code=400, detail="Dieser Link ist abgelaufen")
+
+    # 2. "Geteilte Rezepte" Kochbuch für den neuen User finden oder erstellen
+    shared_cookbook = db.query(CookbookDB).filter(
+        CookbookDB.owner_id == current_user.id, 
+        CookbookDB.name == "Geteilte Rezepte"
+    ).first()
+
+    if not shared_cookbook:
+        shared_cookbook = CookbookDB(name="Geteilte Rezepte", owner_id=current_user.id)
+        db.add(shared_cookbook)
+        db.flush() # ID generieren
+
+    # 3. Sicherheitscheck: Hat der User das Rezept schon?
+    existing_copy = db.query(RecipeDB).filter(
+            RecipeDB.owner_id == current_user.id,
+            RecipeDB.original_url == share.recipe.original_url,
+        ).first()
+    if existing_copy:
+        return {"message": "Rezept war bereits vorhanden", "recipe_id": existing_copy.id}
+
+    # Wir erstellen eine Kopie des Rezepts oder verknüpfen es (je nach deiner Logik)
+    # Empfehlung: Erstelle eine Kopie, damit der neue User es bearbeiten kann, ohne das Original zu ändern
+    original_recipe = share.recipe
+
+    new_recipe = RecipeDB(
+        title=original_recipe.title,
+        description=original_recipe.description,
+        original_url=original_recipe.original_url,
+        instructions=original_recipe.instructions,
+        ingredients_str=original_recipe.ingredients_str,
+        image_url=original_recipe.image_url,
+        owner_id=current_user.id, # Neuer Besitzer
+        prep_time=original_recipe.prep_time,
+        cook_time=original_recipe.cook_time,
+        total_time=original_recipe.total_time,
+        yields=original_recipe.yields,
+        notes=original_recipe.notes,
+        is_shared=True # Optionaler Flag
+    )
+    db.add(new_recipe)
+    db.flush()
+
+    # Verknüpfung zum Kochbuch herstellen
+    shared_cookbook.recipes.append(new_recipe)
+    
+    db.commit()
+    return {"message": "Rezept erfolgreich hinzugefügt", "recipe_id": new_recipe.id}
