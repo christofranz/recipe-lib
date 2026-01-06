@@ -214,6 +214,57 @@ function RecipeDetail() {
     const fromPath = location.state?.from || "/";
     const isFromCookbook = fromPath.includes("/cookbook/");
 
+    // Always on
+    const [isMobile, setIsMobile] = useState(false);
+    const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+    const [wakeLock, setWakeLock] = useState<any>(null);
+
+    // 1. Prüfen, ob wir auf einem Mobilgerät sind
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    // 2. Automatisches Re-Locking beim Zurückkehren zum Tab
+    useEffect(() => {
+        const handleVisibilityChange = async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                const lock = await (navigator as any).wakeLock.request('screen');
+                setWakeLock(lock);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [wakeLock]);
+
+    const toggleWakeLock = async () => {
+        if (!('wakeLock' in navigator)) {
+            alert("Dein Browser unterstützt das Wachhalten des Bildschirms leider nicht.");
+            return;
+        }
+
+        try {
+            if (!isWakeLockActive) {
+                const lock = await (navigator as any).wakeLock.request('screen');
+                setWakeLock(lock);
+                setIsWakeLockActive(true);
+                lock.addEventListener('release', () => setIsWakeLockActive(false));
+            } else {
+                wakeLock?.release();
+                setWakeLock(null);
+                setIsWakeLockActive(false);
+            }
+        } catch (err) {
+            console.error("Wake Lock Fehler:", err);
+        }
+    };
+
+
     useEffect(() => {
         const loadRecipe = async () => {
             try {
@@ -481,6 +532,7 @@ function RecipeDetail() {
 
                     <h2 className="font-bold text-lg mb-4 pt-4 border-t">Anweisungen</h2>
 
+
                     <div className="space-y-4">
                         {/* Wir splitten den Text bei \n\n (die Absatztrennung aus dem Backend) 
             und rendern jeden Teil als einen eigenen Absatz oder Schritt. */}
@@ -496,6 +548,31 @@ function RecipeDetail() {
                             </div>
                         ))}
                     </div>
+                    {isMobile && (
+                        <div className="fixed bottom-6 right-6 z-50">
+                            <button
+                                onClick={toggleWakeLock}
+                                className={`
+                relative flex items-center justify-center w-11 h-11 rounded-full shadow-lg transition-all duration-200
+                ${isWakeLockActive
+                                        ? 'bg-yellow-400 text-yellow-900 shadow-yellow-200/50 ring-2 ring-yellow-300'
+                                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700 shadow-black/20'}
+            `}
+                            >
+                                {isWakeLockActive ? (
+                                    // Minimalistische Glühbirne (An)
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                        <path d="M12 2.25a.75.75 0 0 1 .75.75v2.25a.75.75 0 0 1-1.5 0V3a.75.75 0 0 1 .75-.75ZM7.5 12a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM18.894 6.166a.75.75 0 0 0-1.06-1.06l-1.591 1.59a.75.75 0 1 0 1.06 1.061l1.591-1.59ZM21.75 12a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1 0-1.5H21a.75.75 0 0 1 .75.75ZM17.834 18.894a.75.75 0 0 0 1.06-1.06l-1.59-1.591a.75.75 0 1 0-1.061 1.06l1.59 1.591ZM12 18.75a.75.75 0 0 1 .75.75V21.75a.75.75 0 0 1-1.5 0V19.5a.75.75 0 0 1 .75-.75ZM4.106 17.834a.75.75 0 0 0 1.06 1.06l1.59-1.591a.75.75 0 0 0-1.061-1.06l-1.59 1.591ZM2.25 12a.75.75 0 0 1 .75-.75h2.25a.75.75 0 0 1 0 1.5H3a.75.75 0 0 1-.75-.75ZM6.166 5.106a.75.75 0 0 0-1.06 1.06l1.591 1.59a.75.75 0 0 0 1.06-1.06l-1.591-1.59Z" />
+                                    </svg>
+                                ) : (
+                                    // Mond-Icon für "Ruhezustand erlaubt"
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                        <path fillRule="evenodd" d="M9.528 1.718a.75.75 0 0 1 .162.819A8.97 8.97 0 0 0 9 6a9 9 0 0 0 9 9 8.97 8.97 0 0 0 3.463-.69.75.75 0 0 1 .981.98 10.503 10.503 0 1 1-13.236-13.235.75.75 0 0 1 .82.163Z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </div >
