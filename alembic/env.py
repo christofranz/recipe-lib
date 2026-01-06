@@ -8,7 +8,7 @@ from alembic import context
 # Make project root importable
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from api.db_models import Base, RecipeDB, UserDB, CookbookDB  # IMPORTANT: imports all models
+from api.db_models import Base, RecipeDB, UserDB, CookbookDB, RecipeShare  # IMPORTANT: imports all models
 
 config = context.config
 
@@ -20,6 +20,7 @@ target_metadata = Base.metadata
 
 def get_url():
     url = os.getenv("PROD_POSTGRES_URL")
+    print("Prod postgres URL:", url)
     if url:
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
