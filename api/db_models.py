@@ -1,5 +1,6 @@
 import uuid
 from pydantic import BaseModel
+from datetime import datetime, timedelta
 from sqlalchemy import Table
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Text, DateTime
 from sqlalchemy.orm import relationship
@@ -46,6 +47,9 @@ class RecipeDB(Base):
     # cookbooks relationship
     cookbooks = relationship("CookbookDB", secondary=cookbook_recipe_association, back_populates="recipes")
 
+    # sharing
+    is_shared = Column(Boolean, default=False)
+
 
 class RecipeImport(BaseModel):
     url: str
@@ -79,3 +83,16 @@ class CookbookDB(Base):
     owner_id = Column(Integer, ForeignKey("users.id"))
     
     recipes = relationship("RecipeDB", secondary=cookbook_recipe_association, back_populates="cookbooks")
+
+
+class RecipeShare(Base):
+    __tablename__ = "recipe_shares"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    recipe_id = Column(Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False)
+    creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=7))
+
+    # Relationen
+    recipe = relationship("RecipeDB")
