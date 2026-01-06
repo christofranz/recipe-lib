@@ -12,7 +12,8 @@ if not SECRET_KEY:
 if not ALGORITHM:
     raise RuntimeError("JWT Algorithm is not configured")
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 600
+# 2 weeks = 14 days = 20,160 minutes
+ACCESS_TOKEN_EXPIRE_MINUTES = 20160
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     # bcrypt benötigt byte-strings, daher encode()
