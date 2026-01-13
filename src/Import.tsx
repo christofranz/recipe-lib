@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { Cookbook } from './App';
@@ -75,12 +75,19 @@ export default function ImportPage() {
         }
     };
 
+    // Ref für den AbortController
+    const abortControllerRef = useRef<AbortController | null>(null);
+
     // image import via upload
     const handlePhotoImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setIsImporting(true);
+
+        // abort controller
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
 
         // FormData erstellen
         const formData = new FormData();
@@ -93,6 +100,7 @@ export default function ImportPage() {
         try {
             const response = await authenticatedFetch('/api/import/photo', {
                 method: 'POST',
+                signal: controller.signal, // HIER das Signal übergeben
                 headers: {
                     // 'Content-Type' NICHT setzen bei FormData!
                     'Authorization': `Bearer ${token}`
@@ -111,6 +119,11 @@ export default function ImportPage() {
             navigate(`/recipe/${data.id}`);
 
         } catch (error) {
+            // PRÜFUNG: Wenn der Fehler durch .abort() ausgelöst wurde, tu nichts (oder logge es nur)
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log("Import vom User gestoppt.");
+                return; // Funktion verlassen, kein Alert
+            }
             if (!(error instanceof Error) || error.message !== "Session abgelaufen") {
                 console.error(error);
                 alert("Netzwerkfehler beim Hochladen.");
@@ -118,8 +131,91 @@ export default function ImportPage() {
             setIsImporting(false);
         }
     };
+
+    // Die Funktion für den Button
+    const cancelImport = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort(); // Stoppt den HTTP-Request
+            setIsImporting(false);
+        }
+    };
+
+    // 1. Definiere kleine Status-Texte
+    const loadingSteps = [
+        "Bild wird übertragen...",
+        "KI liest das Kochbuch...",
+        "Zutaten werden sortiert...",
+        "Fast fertig..."
+    ];
+
+    // 2. In deiner Komponente
+    const [loadingStep, setLoadingStep] = useState(0);
+
+    // Effekt, der die Texte während des Ladens durchwechselt
+    useEffect(() => {
+        let interval: number;
+        if (isImporting) {
+            interval = setInterval(() => {
+                setLoadingStep(prev => (prev < loadingSteps.length - 1 ? prev + 1 : prev));
+            }, 4000);
+        } else {
+            setLoadingStep(0);
+        }
+        return () => clearInterval(interval);
+    }, [isImporting]);
+
     return (
+
         <div className="min-h-screen bg-gray-100 p-8">
+            {/* 1. DAS LADE-OVERLAY (Wird nur angezeigt, wenn isImporting true ist) */}
+            {isImporting && (
+                <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center">
+                    <div className="relative w-32 h-32 mb-8">
+                        {/* Pulsierender Hintergrund */}
+                        <div className="absolute inset-0 bg-blue-100 rounded-3xl animate-pulse"></div>
+
+                        {/* Scanner-Animation */}
+                        <div className="absolute inset-4 border-2 border-blue-500 rounded-2xl overflow-hidden">
+                            <div className="w-full h-full bg-blue-50/50 flex items-center justify-center text-5xl">
+                                📖
+                            </div>
+                            {/* Der Laser-Balken */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,1)] animate-scan-line"></div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
+                            {loadingSteps[loadingStep]}
+                        </h3>
+                        <p className="text-gray-500 max-w-[250px] mx-auto">
+                            Unsere KI digitalisiert gerade dein Kochbuch-Foto.
+                        </p>
+                    </div>
+
+                    {/* Ein kleiner Fortschrittsbalken unten */}
+                    <div className="mt-8 w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-blue-600 transition-all duration-500 ease-out"
+                            style={{ width: `${((loadingStep + 1) / loadingSteps.length) * 100}%` }}
+                        ></div>
+                    </div>
+                    <div className="mt-12 flex flex-col items-center gap-4">
+                        <button
+                            onClick={cancelImport}
+                            className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full text-sm font-bold transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Abbrechen
+                        </button>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-widest">
+                            KI Analyse kann bis zu 1 min dauern je nach Bildqualität.
+                        </p>
+                    </div>
+                </div>
+            )}
             <div className="max-w-6xl mx-auto">
                 <Header />
 

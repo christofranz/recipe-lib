@@ -533,7 +533,7 @@ async def import_from_photo(
     new_recipe = RecipeDB(
         title=scraped_data.get("title", "Gescanntes Rezept"),
         description=scraped_data.get("description", ""),
-        image_url="https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=1350&q=80", 
+        image_url="https://images.unsplash.com/photo-1542223189-67a03fa0f0bd?auto=format&fit=crop&w=1200&q=80", 
         original_url="Photo-OCR",
         ingredients_str=ingredients_str,
         instructions=instructions_str,

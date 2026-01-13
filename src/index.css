@@ -22,3 +22,24 @@
     /* Stellen Sie sicher, dass der Text weich gerendert wird */
     -webkit-font-smoothing: antialiased;
 }
+
+@keyframes scan-line {
+    0% {
+        top: 0%;
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        top: 100%;
+        opacity: 0;
+    }
+}
+
+.animate-scan-line {
+    position: absolute;
+    animation: scan-line 2s linear infinite;
+}
