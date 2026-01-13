@@ -220,3 +220,6 @@ print(engine.url)
 
 ---------
 icon converter: https://redketchup.io/icon-converter
+
+-----
+google genai studio and api key: https://aistudio.google.com/
