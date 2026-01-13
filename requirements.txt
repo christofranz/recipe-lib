@@ -10,3 +10,4 @@ bcrypt
 python-multipart
 python-dotenv
 alembic
+google-genai

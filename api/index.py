@@ -1,6 +1,8 @@
 import os
 import datetime
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+import json
+import re
+from fastapi import FastAPI, Depends, HTTPException, Request, status, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -11,8 +13,8 @@ from sqlalchemy.orm import sessionmaker, Session, joinedload
 from .recipe_scraper import scrape_jsonld, scrape_tk_recipe
 from .db_models import RecipeDB, RecipeImport, RecipeShare, RecipeUpdate, Base, UserDB, UserCreate, CookbookDB
 from .login_auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
-
-
+from google import genai
+from google.genai import types # Für die Typ-Definitionen
 # --- 1. DATABASE CONFIGURATION ---
 
 # Check if running on Vercel (Postgres) or Local (SQLite)
@@ -35,6 +37,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # get prod url from env or set localhost
 PROD_URL = os.getenv("PROD_URL", "http://localhost:8000")
 
+# genai setup
+if not os.getenv("GOOGLE_GENAI_API_KEY"):
+    print("⚠️ WARNING: GOOGLE_GENAI_API_KEY is not set. Gemini API calls will fail.")
+client = genai.Client(api_key=os.getenv("GOOGLE_GENAI_API_KEY"))
+
 # --- 2. APP SETUP ---
 
 app = FastAPI()
@@ -56,7 +63,7 @@ def get_db():
         yield db
     finally:
         db.close()
-
+    
 # OAuth2 Schema
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
@@ -459,3 +466,98 @@ def accept_share(token: str, db: Session = Depends(get_db), current_user: UserDB
     
     db.commit()
     return {"message": "Rezept erfolgreich hinzugefügt", "recipe_id": new_recipe.id}
+
+# for recipe import from photo
+@app.post("/api/import/photo")
+async def import_from_photo(
+    file: UploadFile = File(...), 
+    cookbook_ids: str = Form("[]"), 
+    db: Session = Depends(get_db), 
+    current_user: UserDB = Depends(get_current_user)
+):
+    # 1. Bild einlesen
+    try:
+        image_content = await file.read()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Bild konnte nicht gelesen werden.")
+
+    # 2. KI Analyse mit google-genai
+    prompt = """
+    Analysiere dieses Foto eines Rezepts. 
+    Extrahiere die Daten exakt und gib sie als JSON zurück falls vorhanden.
+    Struktur: {
+      "title": "Name",
+      "description": "Kurz-Info",
+      "ingredients": ["Zutat 1", "Zutat 2"],
+      "instructions": ["Schritt 1", "Schritt 2"],
+      "prep_time": 10,
+      "cook_time": 20,
+      "total_time": 30,
+      "yields": 4
+    }
+    """
+    
+    try:
+        # Aufruf über client.models (Neu in SDK 1.0)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                prompt,
+                types.Part.from_bytes(
+                    data=image_content,
+                    mime_type=file.content_type or 'image/jpeg'
+                )
+            ],
+            config=types.GenerateContentConfig(
+                # Der JSON-Modus verhindert Formatierungsfehler
+                response_mime_type="application/json",
+                temperature=0.1
+            )
+        )
+        
+        # Dank JSON-Modus ist response.text ein reiner JSON-String
+        scraped_data = json.loads(response.text)
+        
+    except Exception as e:
+        print(f"Gemini SDK Error: {e}")
+        raise HTTPException(status_code=500, detail="KI-Analyse fehlgeschlagen.")
+
+    if not scraped_data:
+        raise HTTPException(status_code=422, detail="Keine Daten erkannt.")
+
+    # 3. Daten formatieren (Konsistent zu deinem Schema)
+    ingredients_str = "|".join([i.strip() for i in scraped_data.get('ingredients', [])])
+    instructions_str = "\n\n".join(scraped_data.get('instructions', []))
+
+    # 4. In DB speichern (Konsistent zu import_recipe)
+    new_recipe = RecipeDB(
+        title=scraped_data.get("title", "Gescanntes Rezept"),
+        description=scraped_data.get("description", ""),
+        image_url="https://images.unsplash.com/photo-1542223189-67a03fa0f0bd?auto=format&fit=crop&w=1200&q=80", 
+        original_url="Photo-OCR",
+        ingredients_str=ingredients_str,
+        instructions=instructions_str,
+        prep_time=scraped_data.get("prep_time", None),
+        cook_time=scraped_data.get("cook_time", None),
+        total_time=scraped_data.get("total_time", None),
+        yields=scraped_data.get("yields", 1),
+        owner_id=current_user.id
+    )
+
+    # 5. Kochbücher verknüpfen
+    try:
+        parsed_ids = json.loads(cookbook_ids)
+        if parsed_ids:
+            cookbooks = db.query(CookbookDB).filter(
+                CookbookDB.id.in_(parsed_ids),
+                CookbookDB.owner_id == current_user.id
+            ).all()
+            new_recipe.cookbooks = cookbooks
+    except Exception:
+        pass
+
+    db.add(new_recipe)
+    db.commit()
+    db.refresh(new_recipe)
+    
+    return {"id": new_recipe.id, "title": new_recipe.title}

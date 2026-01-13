@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { Cookbook } from './App';
@@ -75,8 +75,147 @@ export default function ImportPage() {
         }
     };
 
+    // Ref für den AbortController
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    // image import via upload
+    const handlePhotoImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+
+        // abort controller
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        // FormData erstellen
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // HIER: Die aktuell ausgewählten Kochbuch-IDs mitschicken
+        // Wir senden es als JSON-String, damit das Backend es leicht verarbeiten kann
+        formData.append('cookbook_ids', JSON.stringify(selectedCookbookIds));
+
+        try {
+            const response = await authenticatedFetch('/api/import/photo', {
+                method: 'POST',
+                signal: controller.signal, // HIER das Signal übergeben
+                headers: {
+                    // 'Content-Type' NICHT setzen bei FormData!
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            }, logout);
+
+            if (!response.ok) {
+                const err = await response.json();
+                alert("Fehler beim Scan: " + (err.detail || "Unbekannter Fehler"));
+                setIsImporting(false);
+                return;
+            }
+
+            const data = await response.json();
+            navigate(`/recipe/${data.id}`);
+
+        } catch (error) {
+            // PRÜFUNG: Wenn der Fehler durch .abort() ausgelöst wurde, tu nichts (oder logge es nur)
+            if (error instanceof Error && error.name === 'AbortError') {
+                console.log("Import vom User gestoppt.");
+                return; // Funktion verlassen, kein Alert
+            }
+            if (!(error instanceof Error) || error.message !== "Session abgelaufen") {
+                console.error(error);
+                alert("Netzwerkfehler beim Hochladen.");
+            }
+            setIsImporting(false);
+        }
+    };
+
+    // Die Funktion für den Button
+    const cancelImport = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort(); // Stoppt den HTTP-Request
+            setIsImporting(false);
+        }
+    };
+
+    // 1. Definiere kleine Status-Texte
+    const loadingSteps = [
+        "Bild wird übertragen...",
+        "KI liest das Kochbuch...",
+        "Zutaten werden sortiert...",
+        "Fast fertig..."
+    ];
+
+    // 2. In deiner Komponente
+    const [loadingStep, setLoadingStep] = useState(0);
+
+    // Effekt, der die Texte während des Ladens durchwechselt
+    useEffect(() => {
+        let interval: number;
+        if (isImporting) {
+            interval = setInterval(() => {
+                setLoadingStep(prev => (prev < loadingSteps.length - 1 ? prev + 1 : prev));
+            }, 4000);
+        } else {
+            setLoadingStep(0);
+        }
+        return () => clearInterval(interval);
+    }, [isImporting]);
+
     return (
+
         <div className="min-h-screen bg-gray-100 p-8">
+            {/* 1. DAS LADE-OVERLAY (Wird nur angezeigt, wenn isImporting true ist) */}
+            {isImporting && (
+                <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center">
+                    <div className="relative w-32 h-32 mb-8">
+                        {/* Pulsierender Hintergrund */}
+                        <div className="absolute inset-0 bg-blue-100 rounded-3xl animate-pulse"></div>
+
+                        {/* Scanner-Animation */}
+                        <div className="absolute inset-4 border-2 border-blue-500 rounded-2xl overflow-hidden">
+                            <div className="w-full h-full bg-blue-50/50 flex items-center justify-center text-5xl">
+                                📖
+                            </div>
+                            {/* Der Laser-Balken */}
+                            <div className="absolute top-0 left-0 w-full h-1 bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,1)] animate-scan-line"></div>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <h3 className="text-2xl font-bold text-gray-900 tracking-tight">
+                            {loadingSteps[loadingStep]}
+                        </h3>
+                        <p className="text-gray-500 max-w-[250px] mx-auto">
+                            Unsere KI digitalisiert gerade dein Kochbuch-Foto.
+                        </p>
+                    </div>
+
+                    {/* Ein kleiner Fortschrittsbalken unten */}
+                    <div className="mt-8 w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-blue-600 transition-all duration-500 ease-out"
+                            style={{ width: `${((loadingStep + 1) / loadingSteps.length) * 100}%` }}
+                        ></div>
+                    </div>
+                    <div className="mt-12 flex flex-col items-center gap-4">
+                        <button
+                            onClick={cancelImport}
+                            className="px-6 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full text-sm font-bold transition-all active:scale-95 flex items-center gap-2"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            Abbrechen
+                        </button>
+                        <p className="text-[10px] text-gray-400 uppercase tracking-widest">
+                            KI Analyse kann bis zu 1 min dauern je nach Bildqualität.
+                        </p>
+                    </div>
+                </div>
+            )}
             <div className="max-w-6xl mx-auto">
                 <Header />
 
@@ -101,69 +240,78 @@ export default function ImportPage() {
                 {/* ZENTRALE IMPORT CARD */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
                     <div className="p-8">
-                        <h2 className="text-2xl font-bold text-gray-800 mb-1">Rezept importieren</h2>
-                        <p className="text-gray-500 mb-8 text-sm">Unterstützt Chefkoch, Techniker Krankenkasse und mehr.</p>
+                        <h2 className="text-2xl font-bold text-gray-800 mb-1">Rezept hinzufügen</h2>
+                        <p className="text-gray-500 mb-8 text-sm">Importiere via Link oder scanne ein Kochbuch-Foto.</p>
 
-                        {/* NUR EIN FORM TAG HIER */}
-                        <form onSubmit={handleImport} className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-                            {/* LINKE SPALTE: URL Eingabe */}
-                            <div className="lg:col-span-7 space-y-4">
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider ml-1">
-                                        Rezept Link
-                                    </label>
-                                    <div className="flex flex-col sm:flex-row gap-3">
-                                        <input
-                                            type="text"
-                                            placeholder="https://www.chefkoch.de/rezepte/..."
-                                            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 focus:bg-white focus:ring-2 focus:ring-green-500 outline-none transition-all shadow-sm"
-                                            value={importUrl}
-                                            onChange={(e) => setImportUrl(e.target.value)}
-                                        />
-                                        <button
-                                            type="submit"
-                                            disabled={isImporting || !importUrl}
-                                            className={`px-8 py-3 rounded-xl text-white font-bold shadow-lg transition-all active:scale-95 ${isImporting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 hover:shadow-green-200'
-                                                }`}
-                                        >
-                                            {isImporting ? 'Importiert...' : 'Import'}
-                                        </button>
-                                    </div>
+                        {/* Kochbuch-Auswahl steht jetzt oben drüber, da sie für BEIDE gilt */}
+                        <div className="mb-8 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                            <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-4 font-bold">
+                                Ziel-Kochbücher auswählen
+                            </span>
+                            {cookbooks.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {cookbooks.map(cb => {
+                                        const active = selectedCookbookIds.includes(cb.id);
+                                        return (
+                                            <button
+                                                key={cb.id}
+                                                type="button"
+                                                onClick={() => toggleSelection(cb.id)}
+                                                className={`px-4 py-2 rounded-lg text-xs font-medium border transition-all ${active
+                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                                    : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                                                    }`}
+                                            >
+                                                {cb.name} {active ? '✓' : '+'}
+                                            </button>
+                                        );
+                                    })}
                                 </div>
+                            ) : (
+                                <p className="text-xs text-gray-400 italic">Noch keine Kochbücher erstellt.</p>
+                            )}
+                        </div>
 
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* LINKS: URL IMPORT */}
+                            <form onSubmit={handleImport} className="space-y-4 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                                <h3 className="font-bold text-gray-800 flex items-center gap-2">🔗 Link Import</h3>
+                                <input
+                                    type="text"
+                                    placeholder="https://..."
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 focus:bg-white outline-none"
+                                    value={importUrl}
+                                    onChange={(e) => setImportUrl(e.target.value)}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={isImporting || !importUrl}
+                                    className="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-700 disabled:bg-gray-300"
+                                >
+                                    {isImporting ? 'Lädt...' : 'URL Importieren'}
+                                </button>
+                            </form>
+
+                            {/* RECHTS: FOTO IMPORT */}
+                            <div className="space-y-4 p-6 bg-white border border-gray-100 rounded-2xl shadow-sm flex flex-col justify-between">
+                                <h3 className="font-bold text-gray-800 flex items-center gap-2">📸 Foto Scan</h3>
+                                <p className="text-xs text-gray-500">Fotografiere ein Rezept aus einem Buch.</p>
+                                <label className={`
+                cursor-pointer px-6 py-3 rounded-xl font-bold text-center transition-all
+                ${isImporting ? 'bg-gray-200 text-gray-400' : 'bg-blue-600 hover:bg-blue-700 text-white'}
+            `}>
+                                    {isImporting ? 'KI analysiert...' : 'Foto aufnehmen'}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        capture="environment"
+                                        onChange={handlePhotoImport}
+                                        disabled={isImporting}
+                                        className="hidden"
+                                    />
+                                </label>
                             </div>
-
-                            {/* RECHTE SPALTE: Kochbuch Auswahl */}
-                            <div className="lg:col-span-5 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
-                                <span className="text-[10px] uppercase tracking-wider text-gray-400 block mb-4 font-bold">
-                                    In Kochbücher einsortieren
-                                </span>
-
-                                {cookbooks.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
-                                        {cookbooks.map(cb => {
-                                            const active = selectedCookbookIds.includes(cb.id);
-                                            return (
-                                                <button
-                                                    key={cb.id}
-                                                    type="button"
-                                                    onClick={() => toggleSelection(cb.id)}
-                                                    className={`px-4 py-2 rounded-lg text-xs font-medium border transition-all ${active
-                                                        ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-100'
-                                                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
-                                                        }`}
-                                                >
-                                                    {cb.name} {active ? '✓' : '+'}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <p className="text-xs text-gray-400 italic">Noch keine Kochbücher erstellt.</p>
-                                )}
-                            </div>
-                        </form> {/* Ende des Formulars */}
+                        </div>
                     </div> {/* Ende p-8 */}
                 </div> {/* Ende der Card */}
             </div> {/* Ende max-w-6xl */}
