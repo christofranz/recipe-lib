@@ -1,7 +1,8 @@
 import os
 import datetime
 import json
-import re
+import cloudinary
+import cloudinary.uploader
 from fastapi import FastAPI, Depends, HTTPException, Request, status, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +42,14 @@ PROD_URL = os.getenv("PROD_URL", "http://localhost:8000")
 if not os.getenv("GOOGLE_GENAI_API_KEY"):
     print("⚠️ WARNING: GOOGLE_GENAI_API_KEY is not set. Gemini API calls will fail.")
 client = genai.Client(api_key=os.getenv("GOOGLE_GENAI_API_KEY"))
+
+# cloudinary setup
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True
+)
 
 # --- 2. APP SETUP ---
 
@@ -485,6 +494,8 @@ async def import_from_photo(
     prompt = """
     Analysiere dieses Foto eines Rezepts. 
     Extrahiere die Daten exakt und gib sie als JSON zurück falls vorhanden.
+    Zusätzlich: Prüfe, ob auf dem Foto ein appetitliches Bild des fertigen Gerichts zu sehen ist.
+    Setze "has_good_image" auf true, wenn ein Bild des Essens vorhanden ist, sonst false.
     Struktur: {
       "title": "Name",
       "description": "Kurz-Info",
@@ -493,7 +504,8 @@ async def import_from_photo(
       "prep_time": 10,
       "cook_time": 20,
       "total_time": 30,
-      "yields": 4
+      "yields": 4,
+      "has_good_image": true/false
     }
     """
     
@@ -529,11 +541,40 @@ async def import_from_photo(
     ingredients_str = "|".join([i.strip() for i in scraped_data.get('ingredients', [])])
     instructions_str = "\n\n".join(scraped_data.get('instructions', []))
 
+    # Optional: Bild-URL setzen, wenn ein gutes Bild erkannt wurde
+    DEFAULT_IMG_URL = "https://images.unsplash.com/photo-1542223189-67a03fa0f0bd?auto=format&fit=crop&w=1200&q=80"
+    has_image = scraped_data.get("has_good_image", False)
+    if has_image:
+        try:
+            # KI-basiertes Zuschneiden: Cloudinary sucht das "Essen" im Bild
+            upload_result = cloudinary.uploader.upload(
+                image_content,
+                folder="recipes",
+                transformation=[
+                    # 1. Schritt: KI-Schnitt auf das Motiv
+                    {"gravity": "auto", "width": 1000, "height": 1000, "crop": "fill"},
+                    
+                    # 2. Schritt: Optische Aufwertung
+                    {"effect": "improve:outdoor:30"}, # Hellt Schatten auf, sättigt Farben
+                    {"effect": "unsharp_mask:80"},    # Macht den Scan knackig scharf (wichtig für Drucke)
+                    
+                    # 3. Schritt: Optimierung
+                    {"quality": "auto", "fetch_format": "auto"}
+                ]
+            )
+            final_image_url = upload_result.get("secure_url")
+        except Exception as e:
+            print("Cloudinary upload failed: {}".format(e))
+            final_image_url = DEFAULT_IMG_URL
+    else:
+        # Wenn kein Bild im Scan war, nimm das schöne Standard-Gemüse-Bild
+        final_image_url = DEFAULT_IMG_URL
+
     # 4. In DB speichern (Konsistent zu import_recipe)
     new_recipe = RecipeDB(
         title=scraped_data.get("title", "Gescanntes Rezept"),
         description=scraped_data.get("description", ""),
-        image_url="https://images.unsplash.com/photo-1542223189-67a03fa0f0bd?auto=format&fit=crop&w=1200&q=80", 
+        image_url=final_image_url, 
         original_url="Photo-OCR",
         ingredients_str=ingredients_str,
         instructions=instructions_str,
