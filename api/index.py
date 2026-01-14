@@ -295,6 +295,30 @@ def update_recipe(
         
     if update_data.notes is not None:
         recipe.notes = update_data.notes
+    
+    if update_data.title is not None:
+        recipe.title = update_data.title
+    
+    if update_data.description is not None:
+        recipe.description = update_data.description
+    
+    if update_data.ingredients_str is not None:
+        recipe.ingredients_str = update_data.ingredients_str
+    
+    if update_data.instructions is not None:
+        recipe.instructions = update_data.instructions
+    
+    if update_data.prep_time is not None:
+        recipe.prep_time = update_data.prep_time
+    
+    if update_data.cook_time is not None:
+        recipe.cook_time = update_data.cook_time
+    
+    if update_data.total_time is not None:
+        recipe.total_time = update_data.total_time
+    
+    if update_data.yields is not None:
+        recipe.yields = update_data.yields
 
     db.commit()
     db.refresh(recipe)
@@ -602,3 +626,30 @@ async def import_from_photo(
     db.refresh(new_recipe)
     
     return {"id": new_recipe.id, "title": new_recipe.title}
+
+
+# update image of recipe
+@app.patch("/api/recipes/{recipe_id}/image")
+async def update_recipe_image(recipe_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == recipe_id, RecipeDB.owner_id == current_user.id).first()
+    if not recipe: raise HTTPException(status_code=404)
+    
+    image_content = await file.read()
+    
+    # Manuelle Transformation: Fokus auf die Mitte, kein extremer Zoom
+    upload_result = cloudinary.uploader.upload(
+        image_content,
+        folder="recipes",
+        transformation=[
+            {"width": 1000, "height": 1000, "crop": "fill", "gravity": "center"},
+            {"effect": "improve:outdoor", "quality": "auto"}
+        ]
+    )
+    
+    new_url = upload_result.get("secure_url")
+    
+    # In DB speichern
+    recipe.image_url = new_url
+    db.commit()
+    
+    return {"image_url": new_url}

@@ -10,7 +10,13 @@ import CookbookSelector from './CookbookSelector';
 import AcceptShare from './AcceptShare';
 import { authenticatedFetch } from './api';
 import Header from './Header';
-import { TimerIcon, FireIcon, UsersIcon } from './Icons';
+// import { TimerIcon, FireIcon, UsersIcon } from './Icons';
+import {
+    Timer as TimerIcon,
+    Flame as FireIcon,
+    Users as UsersIcon,
+    Camera, Edit2, Check, X, Trash2, Share2, Star
+} from 'lucide-react';
 
 // --- TYPEN ---
 export interface Recipe {
@@ -201,6 +207,9 @@ function RecipeList() {
 function RecipeDetail() {
     const { id } = useParams(); // Holt die ID aus der URL
     const [recipe, setRecipe] = useState<Recipe | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [allCookbooks, setAllCookbooks] = useState([]);
     const { token, logout } = useAuth();
 
     const location = useLocation(); // Hook wovon der User kommt
@@ -312,18 +321,70 @@ function RecipeDetail() {
     const bringDeeplinkBase = "https://api.getbring.com/rest/bringrecipes/deeplink";
     const finalBringDeeplink = `${bringDeeplinkBase}?url=${recipeSourceUrl}&source=web&baseQuantity=4&requestedQuantity=4`;
 
-    const saveUpdate = async (fields: { rating?: number; notes?: string }) => {
+    const saveUpdate = async (fields = {}) => {
+        setIsSaving(true);
         try {
+            // Logik: Wenn wir im Edit-Mode sind, nehmen wir den gesamten aktuellen State.
+            // Wenn nicht (z.B. nur Sterne geklickt), nehmen wir nur die übergebenen 'fields'.
+            const payload = isEditing ? {
+                title: recipe.title,
+                description: recipe.description,
+                prep_time: recipe.prep_time,
+                cook_time: recipe.cook_time,
+                yields: recipe.yields,
+                ingredients_str: recipe.ingredients_str,
+                instructions: recipe.instructions,
+                notes: notes,
+                rating: rating
+            } : fields;
+
             await authenticatedFetch(`/api/recipes/${id}`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json', 'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify(fields)
+                body: JSON.stringify(payload)
             }, logout);
-            // Optional: Hier könntest du eine Erfolgsmeldung anzeigen ("Gespeichert!")
+
+            // UI-Update: Falls wir im Edit-Mode waren, diesen jetzt schließen
+            if (isEditing) setIsEditing(false);
+
+            // Lokalen State synchronisieren
+            setRecipe((prev) => {
+                if (!prev) return null;
+                return { ...prev, ...payload };
+            });
+
         } catch (err) {
             console.error("Fehler beim Speichern:", err);
+            alert("Änderungen konnten nicht gespeichert werden.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleImageUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsSaving(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await authenticatedFetch(`/api/recipes/${id}/image`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            }, logout);
+
+            const data = await res.json();
+            setRecipe(prev => prev ? { ...prev, image_url: data.image_url } : null);
+        } catch (err) {
+            console.error("Bild-Upload fehlgeschlagen:", err);
+        } finally {
+            setIsSaving(false);
         }
     };
 
@@ -420,46 +481,92 @@ function RecipeDetail() {
                     {isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte'}
                 </button>
 
-                <div className="h-64 relative">
+                <div className="h-64 relative group overflow-hidden">
                     <img src={recipe.image_url} className="w-full h-full object-cover" alt={recipe.title} />
+                    {isEditing && (
+                        <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Camera className="text-white mb-2" />
+                            <span className="text-white text-xs font-bold uppercase">Neues Essensfoto</span>
+                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpdate} />
+                        </label>
+                    )}
                     <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/80 to-transparent p-4">
-                        <h1 className="text-white text-2xl font-bold">{recipe.title}</h1>
+                        {isEditing ? (
+                            <input
+                                className="bg-transparent border-b border-white text-white text-2xl font-bold w-full outline-none py-1"
+                                value={recipe.title}
+                                onChange={(e) => setRecipe({ ...recipe, title: e.target.value })}
+                            />
+                        ) : (
+                            <h1 className="text-white text-2xl font-bold">{recipe.title}</h1>
+                        )}
                     </div>
                 </div>
+                {/* Button-Leiste oben rechts über dem Bild */}
+                <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
 
-                {/* Der Teilen-Button */}
-                <button
-                    onClick={handleShare}
-                    className="absolute top-4 right-16 p-2 bg-white/80 hover:bg-blue-50 backdrop-blur-sm text-gray-500 hover:text-blue-600 rounded-full shadow-lg transition-all duration-200 group"
-                    title="Rezept teilen"
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                        className="w-5 h-5"
+                    {/* Bearbeiten / Speichern Button */}
+                    {!isEditing ? (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="p-2 bg-white/80 hover:bg-blue-50 backdrop-blur-sm text-gray-500 hover:text-blue-600 rounded-full shadow-lg transition-all duration-200 group"
+                            title="Rezept bearbeiten"
+                        >
+                            <Edit2 size={20} className="w-5 h-5" />
+                        </button>
+                    ) : (
+                        <>
+                            {/* ABBRECHEN - Erscheint links vom Speichern-Button */}
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="p-2 bg-white/80 hover:bg-orange-50 backdrop-blur-sm text-gray-500 hover:text-orange-600 rounded-full shadow-lg transition-all duration-200"
+                                title="Abbrechen"
+                            >
+                                <X size={20} className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={() => saveUpdate()}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg transition-all duration-200 font-bold text-sm"
+                            >
+                                <Check size={20} className="w-5 h-5" />
+                                Speichern
+                            </button>
+                        </>
+                    )}
+
+                    {/* Teilen-Button */}
+                    <button
+                        onClick={handleShare}
+                        className="p-2 bg-white/80 hover:bg-blue-50 backdrop-blur-sm text-gray-500 hover:text-blue-600 rounded-full shadow-lg transition-all duration-200 group"
+                        title="Rezept teilen"
                     >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
-                        />
-                    </svg>
-                </button>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={1.5}
+                            stroke="currentColor"
+                            className="w-5 h-5"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                            />
+                        </svg>
+                    </button>
 
-                {/* Der Löschen-Button */}
-                <button
-                    onClick={handleDelete}
-                    className="absolute top-4 right-4 p-2 bg-white/80 hover:bg-red-50 backdrop-blur-sm text-gray-500 hover:text-red-600 rounded-full shadow-lg transition-all duration-200 group"
-                    title="Rezept löschen"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                    </svg>
-                </button>
-
+                    {/* Löschen-Button */}
+                    <button
+                        onClick={handleDelete}
+                        className="p-2 bg-white/80 hover:bg-red-50 backdrop-blur-sm text-gray-500 hover:text-red-600 rounded-full shadow-lg transition-all duration-200 group"
+                        title="Rezept löschen"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                        </svg>
+                    </button>
+                </div>
 
                 <div className="p-6">
                     {recipe.last_cooked && (
@@ -467,7 +574,27 @@ function RecipeDetail() {
                             Zuletzt gekocht am {new Date(recipe.last_cooked).toLocaleDateString('de-DE')}
                         </p>
                     )}
-                    <p className="text-gray-600 mb-6">{recipe.description}</p>
+                    {/* Beschreibung */}
+                    <div className="mb-6">
+                        {isEditing ? (
+                            <div className="flex flex-col">
+                                <label className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1">
+                                    Beschreibung
+                                </label>
+                                <textarea
+                                    className="w-full p-3 text-sm text-gray-600 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white outline-none transition-all resize-none"
+                                    rows={3}
+                                    value={recipe.description || ""}
+                                    onChange={(e) => setRecipe({ ...recipe, description: e.target.value })}
+                                    placeholder="Beschreibe dein Rezept..."
+                                />
+                            </div>
+                        ) : (
+                            <p className="text-gray-600 leading-relaxed italic-none">
+                                {recipe.description || "Keine Beschreibung vorhanden."}
+                            </p>
+                        )}
+                    </div>
                     <CookbookSelector
                         recipeId={recipe.id}
                         currentCookbooks={recipe.cookbooks || []}
@@ -477,84 +604,26 @@ function RecipeDetail() {
                             flex flex-wrap gap-x-8 gap-y-4 
                             mb-4 border-b pb-4
                         ">
-                        {/* Arbeitszeit */}
-                        {recipe.prep_time > 0 && (
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-gray-50 rounded-lg text-gray-500">
-                                    <TimerIcon className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Vorbereitung</p>
-                                    <p className="text-sm font-semibold text-gray-700">{recipe.prep_time} Min.</p>
-                                </div>
-                            </div>
-                        )}
+                        <EditableInfo icon={<TimerIcon className="w-5 h-5" />} label="Vorbereitung" value={recipe.prep_time} suffix="Min." isEditing={isEditing} onChange={(v) => setRecipe({ ...recipe, prep_time: v })} color="gray" />
+                        <EditableInfo icon={<FireIcon className="w-5 h-5" />} label="Kochen" value={recipe.cook_time} suffix="Min." isEditing={isEditing} onChange={(v) => setRecipe({ ...recipe, cook_time: v })} color="orange" />
+                        <EditableInfo icon={<UsersIcon className="w-5 h-5" />} label="Menge" value={recipe.yields} suffix="Port." isEditing={isEditing} onChange={(v) => setRecipe({ ...recipe, yields: v })} color="blue" />
 
-                        {/* Kochzeit */}
-                        {recipe.cook_time > 0 && (
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-orange-50 rounded-lg text-orange-500">
-                                    <FireIcon className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Kochen</p>
-                                    <p className="text-sm font-semibold text-gray-700">{recipe.cook_time} Min.</p>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Menge */}
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-50 rounded-lg text-blue-500">
-                                <UsersIcon className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">Menge</p>
-                                <p className="text-sm font-semibold text-gray-700">{recipe.yields || 1} Port.</p>
-                            </div>
-                        </div>
                         {/* Sterne Bewertung */}
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-2 w-full mt-2">
                             {[1, 2, 3, 4, 5].map((star) => (
-                                <button
-                                    key={star}
-                                    onClick={() => { setRating(star); saveUpdate({ rating: star }); }}
-                                    className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                                >
-                                    ★
-                                </button>
+                                <button key={star} onClick={() => { setRating(star); if (!isEditing) saveUpdate({ rating: star }); }} className={`text-2xl ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}>★</button>
                             ))}
-                            <span className="text-sm text-gray-500 ml-2">({recipe.cook_count}x gekocht)</span>
+                            <span className="text-sm text-gray-400 ml-2">({recipe.cook_count}x gekocht)</span>
                         </div>
                         {/* Notizen Bereich */}
                         <div className="mb-8 w-full">
-                            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-2">
-                                Persönliche Notizen
-                            </p>
-
+                            <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-2">Persönliche Notizen</p>
                             <textarea
-                                className="
-            w-full 
-            p-3
-            text-sm 
-            rounded-lg 
-            border
-            bg-white 
-            text-gray-800 
-            border-gray-200
-            placeholder-gray-400
-            focus:border-green-500 
-            focus:ring-1 
-            focus:ring-green-500
-            outline-none
-            overflow-hidden
-            resize-none
-        "
-                                /* Dynamische Zeilenanzahl: Mindestens 2, sonst Anzahl der Umbrüche + 1 */
+                                className="w-full p-3 text-sm rounded-lg border bg-gray-50 border-gray-200 focus:bg-white outline-none resize-none transition-all"
                                 rows={Math.max(2, notes.split('\n').length)}
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                onBlur={() => saveUpdate({ notes })}
+                                onBlur={() => !isEditing && saveUpdate({ notes })}
                                 placeholder="Notizen hinzufügen..."
                             />
                         </div>
@@ -581,13 +650,27 @@ function RecipeDetail() {
                         </div>
                     </div>
 
-                    <ul className="mb-6 space-y-2">
-                        {ingredients.map((ing, i) => (
-                            <li key={i} className="flex items-center text-gray-700">
-                                <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>{ing}
-                            </li>
-                        ))}
-                    </ul>
+                    {isEditing ? (
+                        <textarea
+                            className="w-full p-3 border rounded-xl text-sm h-64 bg-gray-50 outline-none focus:bg-white"
+                            // Wir zeigen dem User Zeilenumbrüche beim Bearbeiten
+                            value={recipe.ingredients_str?.split('|').join('\n')}
+                            onChange={(e) => setRecipe({ ...recipe, ingredients_str: e.target.value.split('\n').join('|') })}
+                        />
+                    ) : (
+                        <ul className="space-y-2">
+                            {/* WICHTIG: Hier splitten wir den String wieder für die Anzeige auf */}
+                            {recipe.ingredients_str?.split('|')
+                                .filter(ing => ing.trim() !== '') // Verhindert leere Zeilen
+                                .map((ing, i) => (
+                                    <li key={i} className="flex items-center text-gray-700 text-sm">
+                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-3"></span>
+                                        {ing}
+                                    </li>
+                                ))
+                            }
+                        </ul>
+                    )}
 
                     <h2 className="font-bold text-lg mb-4 pt-4 border-t">Anweisungen</h2>
 
@@ -595,17 +678,22 @@ function RecipeDetail() {
                     <div className="space-y-4">
                         {/* Wir splitten den Text bei \n\n (die Absatztrennung aus dem Backend) 
             und rendern jeden Teil als einen eigenen Absatz oder Schritt. */}
-                        {recipe.instructions.split('\n\n').filter(step => step.trim() !== '').map((step, index) => (
-                            <div key={index} className="flex items-start">
-                                {/* Visualisierung des Schritts mit Nummerierung */}
-                                <div className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-green-100 text-green-700 font-bold rounded-full mr-3 mt-1">
-                                    {index + 1}
-                                </div>
-                                <p className="text-gray-700 leading-relaxed flex-grow">
-                                    {step}
-                                </p>
+                        {isEditing ? (
+                            <textarea
+                                className="w-full p-3 border border-gray-200 rounded-xl text-sm h-64 bg-gray-50 outline-none focus:bg-white"
+                                value={recipe.instructions}
+                                onChange={(e) => setRecipe({ ...recipe, instructions: e.target.value })}
+                            />
+                        ) : (
+                            <div className="space-y-4">
+                                {recipe.instructions.split('\n\n').filter(s => s.trim()).map((step, i) => (
+                                    <div key={i} className="flex items-start">
+                                        <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center bg-green-100 text-green-700 text-xs font-bold rounded-full mr-3 mt-1">{i + 1}</div>
+                                        <p className="text-gray-700 text-sm leading-relaxed">{step}</p>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
                     {isMobile && (
                         <div className="fixed bottom-6 right-6 z-50">
@@ -637,7 +725,30 @@ function RecipeDetail() {
         </div >
     );
 }
-
+// --- UNTERKOMPONENTE: EDITIERBARE INFO ---
+function EditableInfo({ icon, label, value, suffix, isEditing, onChange, color }: { icon: JSX.Element; label: string; value: number; suffix: string; isEditing: boolean; onChange: (value: any) => void; color: "gray" | "orange" | "blue" }) {
+    const colors = {
+        gray: "bg-gray-50 text-gray-500",
+        orange: "bg-orange-50 text-orange-500",
+        blue: "bg-blue-50 text-blue-500"
+    };
+    return (
+        <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
+            <div>
+                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-bold">{label}</p>
+                {isEditing ? (
+                    <div className="flex items-center gap-1 border-b border-gray-300">
+                        <input className="text-sm font-semibold text-gray-700 w-12 bg-transparent outline-none" value={value} onChange={(e) => onChange(e.target.value)} />
+                        <span className="text-xs text-gray-400">{suffix}</span>
+                    </div>
+                ) : (
+                    <p className="text-sm font-semibold text-gray-700">{value || 0} {suffix}</p>
+                )}
+            </div>
+        </div>
+    );
+}
 // --- APP ROUTING WRAPPER ---
 export default function App() {
     return (
@@ -672,3 +783,4 @@ export default function App() {
         </AuthProvider>
     );
 }
+
