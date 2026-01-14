@@ -8,6 +8,7 @@ import Header from './Header';
 export default function ImportPage() {
     const [importUrl, setImportUrl] = useState("");
     const [isImporting, setIsImporting] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);   // Speziell für das Foto-KI-Overlay
     const [cookbooks, setCookbooks] = useState<Cookbook[]>([]);
     const [selectedCookbookIds, setSelectedCookbookIds] = useState<number[]>([]);
 
@@ -84,6 +85,7 @@ export default function ImportPage() {
         if (!file) return;
 
         setIsImporting(true);
+        setIsScanning(true); // Das Overlay wird jetzt eingeblendet
 
         // abort controller
         const controller = new AbortController();
@@ -112,6 +114,7 @@ export default function ImportPage() {
                 const err = await response.json();
                 alert("Fehler beim Scan: " + (err.detail || "Unbekannter Fehler"));
                 setIsImporting(false);
+                setIsScanning(false); // Overlay aus
                 return;
             }
 
@@ -129,6 +132,7 @@ export default function ImportPage() {
                 alert("Netzwerkfehler beim Hochladen.");
             }
             setIsImporting(false);
+            setIsScanning(false); // Overlay aus
         }
     };
 
@@ -168,7 +172,7 @@ export default function ImportPage() {
 
         <div className="min-h-screen bg-gray-100 p-8">
             {/* 1. DAS LADE-OVERLAY (Wird nur angezeigt, wenn isImporting true ist) */}
-            {isImporting && (
+            {isScanning && (
                 <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center">
                     <div className="relative w-32 h-32 mb-8">
                         {/* Pulsierender Hintergrund */}

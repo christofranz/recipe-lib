@@ -11,3 +11,4 @@ python-multipart
 python-dotenv
 alembic
 google-genai
+cloudinary

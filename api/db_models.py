@@ -57,8 +57,19 @@ class RecipeImport(BaseModel):
 
 
 class RecipeUpdate(BaseModel):
-    rating: Optional[int] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    original_url: Optional[str] = None
+    ingredients_str: Optional[str] = None
+    instructions: Optional[str] = None
+    prep_time: Optional[int] = None
+    cook_time: Optional[int] = None
+    total_time: Optional[int] = None
+    yields: Optional[int] = None
     notes: Optional[str] = None
+    rating: Optional[int] = None
+    
 
 class UserDB(Base):
     __tablename__ = "users"
