@@ -92,13 +92,13 @@ def scrape_jsonld(url: str):
                 
                 # 3. Bild (kann String oder Objekt oder Liste sein)
                 image_raw = recipe_data.get('image')
-                image_url = None
+                image_url = ""
                 if isinstance(image_raw, str):
                     image_url = image_raw
                 elif isinstance(image_raw, list) and len(image_raw) > 0:
-                    image_url = image_raw[0] if isinstance(image_raw[0], str) else image_raw[0].get('url', None)
+                    image_url = image_raw[0] if isinstance(image_raw[0], str) else image_raw[0].get('url', "")
                 elif isinstance(image_raw, dict):
-                    image_url = image_raw.get('url', None)
+                    image_url = image_raw.get('url', "")
                 
                 # 4. Zutaten (Ist im JSON meist eine Liste von Strings)
                 ingredients_raw = recipe_data.get('recipeIngredient', [])
@@ -145,7 +145,7 @@ def scrape_jsonld(url: str):
                 return {
                     "title": title,
                     "description": description,
-                    "image_url": image_url if image_url else None,
+                    "image_url": image_url if image_url else "",
                     "original_url": url,
                     "ingredients_str": ingredients_str,
                     "instructions": instructions,
@@ -173,7 +173,7 @@ def scrape_tk_recipe(url):
 
     # 2. Bild
     img_tag = soup.find('meta', property='og:image')
-    image_url = img_tag['content'] if img_tag else None
+    image_url = img_tag['content'] if img_tag else ""
 
     def extract_list_after_id(anchor_id_pattern):
         # 1. Finde die Headline über die ID (Regex für Flexibilität)
