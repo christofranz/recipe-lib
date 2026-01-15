@@ -51,6 +51,8 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
     return children;
 }
 
+const PLACEHOLDER_IMAGE = "https://icon-library.com/images/photo-placeholder-icon/photo-placeholder-icon-7.jpg";
+
 // --- KOMPONENTE 1: ÜBERSICHTSLISTE (HOME) ---
 function RecipeList() {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -178,9 +180,16 @@ function RecipeList() {
                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
                                 <div className="h-48 overflow-hidden">
                                     <img
-                                        src={recipe.image_url}
+                                        // Nutzt das Bild aus der DB oder den Platzhalter, wenn image_url leer/null ist
+                                        src={recipe.image_url || PLACEHOLDER_IMAGE}
                                         alt={recipe.title}
                                         className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                                        onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            if (target.src !== PLACEHOLDER_IMAGE) {
+                                                target.src = PLACEHOLDER_IMAGE;
+                                            }
+                                        }}
                                     />
                                 </div>
                                 <div className="p-5 flex-grow">
@@ -482,7 +491,20 @@ function RecipeDetail() {
                 </button>
 
                 <div className="h-64 relative group overflow-hidden">
-                    <img src={recipe.image_url} className="w-full h-full object-cover" alt={recipe.title} />
+                    <img
+                        // Wenn image_url null, undefined oder ein leerer String ist, nimm den Platzhalter
+                        src={recipe.image_url || PLACEHOLDER_IMAGE}
+                        className={`w-full h-full object-cover transition-opacity ${isSaving ? 'opacity-50' : ''}`}
+                        alt={recipe.title}
+                        onError={(e) => {
+                            // Falls der Link in der DB steht, aber das Bild gelöscht wurde (404),
+                            // wird hier zur Laufzeit der Platzhalter eingesetzt.
+                            const target = e.target as HTMLImageElement;
+                            if (target.src !== PLACEHOLDER_IMAGE) {
+                                target.src = PLACEHOLDER_IMAGE;
+                            }
+                        }}
+                    />
                     {isEditing && (
                         <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity">
                             <Camera className="text-white mb-2" />
