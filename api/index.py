@@ -515,6 +515,24 @@ async def import_from_photo(
         raise HTTPException(status_code=400, detail="Bild konnte nicht gelesen werden.")
 
     # 2. KI Analyse mit google-genai
+    def call_model(prompt):
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                prompt,
+                types.Part.from_bytes(
+                    data=image_content,
+                    mime_type=file.content_type or 'image/jpeg'
+                )
+            ],
+            config=types.GenerateContentConfig(
+                # Der JSON-Modus verhindert Formatierungsfehler
+                response_mime_type="application/json",
+                temperature=0.1
+            )
+        )
+        return response
+    
     prompt = """
     Analysiere dieses Foto eines Rezepts. 
     Extrahiere die Daten exakt und gib sie als JSON zurück falls vorhanden.
@@ -535,22 +553,29 @@ async def import_from_photo(
     
     try:
         # Aufruf über client.models (Neu in SDK 1.0)
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                prompt,
-                types.Part.from_bytes(
-                    data=image_content,
-                    mime_type=file.content_type or 'image/jpeg'
-                )
-            ],
-            config=types.GenerateContentConfig(
-                # Der JSON-Modus verhindert Formatierungsfehler
-                response_mime_type="application/json",
-                temperature=0.1
-            )
-        )
-        
+        response = call_model(prompt)
+        if response.text is None:
+            adapted_prompt = """
+                Analysiere dieses Foto eines Rezepts. 
+                Extrahiere die Daten und gib sie als JSON zurück falls vorhanden.
+                Verwende deine eigenen Worte für die Beschreibung und die Anweisungen, um eine Zusammenfassung zu erstellen.
+                Ändere die Struktur leicht ab, aber behalte die Mengenangaben der Zutaten bei. Gib nur valides JSON zurück.
+                Zusätzlich: Prüfe, ob auf dem Foto ein appetitliches Bild des fertigen Gerichts zu sehen ist.
+                Setze "has_good_image" auf true, wenn ein Bild des Essens vorhanden ist, sonst false.
+                Struktur: {
+                "title": "Name",
+                "description": "Kurz-Info",
+                "ingredients": ["Zutat 1", "Zutat 2"],
+                "instructions": ["Schritt 1", "Schritt 2"],
+                "prep_time": 10,
+                "cook_time": 20,
+                "total_time": 30,
+                "yields": 4,
+                "has_good_image": true/false
+                }
+                """
+            response = call_model(adapted_prompt)
+                
         # Dank JSON-Modus ist response.text ein reiner JSON-String
         scraped_data = json.loads(response.text)
         
