@@ -566,7 +566,6 @@ async def import_from_photo(
     instructions_str = "\n\n".join(scraped_data.get('instructions', []))
 
     # Optional: Bild-URL setzen, wenn ein gutes Bild erkannt wurde
-    DEFAULT_IMG_URL = "https://images.unsplash.com/photo-1542223189-67a03fa0f0bd?auto=format&fit=crop&w=1200&q=80"
     has_image = scraped_data.get("has_good_image", False)
     if has_image:
         try:
@@ -589,10 +588,9 @@ async def import_from_photo(
             final_image_url = upload_result.get("secure_url")
         except Exception as e:
             print("Cloudinary upload failed: {}".format(e))
-            final_image_url = DEFAULT_IMG_URL
     else:
         # Wenn kein Bild im Scan war, nimm das schöne Standard-Gemüse-Bild
-        final_image_url = DEFAULT_IMG_URL
+        final_image_url = None
 
     # 4. In DB speichern (Konsistent zu import_recipe)
     new_recipe = RecipeDB(
