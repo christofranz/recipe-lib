@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Register from './Register';
@@ -15,7 +15,9 @@ import {
     Timer as TimerIcon,
     Flame as FireIcon,
     Users as UsersIcon,
-    Camera, Edit2, Check, X, Trash2, Share2, Star
+    Camera, Edit2, Check, X, Trash2, Share2, Star,
+    ArrowUpWideNarrow, ArrowDownWideNarrow,
+    ChevronDown
 } from 'lucide-react';
 
 // --- TYPEN ---
@@ -80,6 +82,24 @@ function RecipeList() {
         recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    // Sortier-Logik
+    const [searchParams, setSearchParams] = useSearchParams();
+
+    // Werte aus der URL lesen (mit Fallback-Standards)
+    const sortBy = (searchParams.get('sort') as SortKey) || 'id';
+    const sortOrder = (searchParams.get('order') as SortOrder) || 'desc';
+
+    // Diese Funktion aktualisiert die URL
+    const updateSort = (newSort?: SortKey, newOrder?: SortOrder) => {
+        const params = new URLSearchParams(searchParams);
+        if (newSort) params.set('sort', newSort);
+        if (newOrder) params.set('order', newOrder);
+        setSearchParams(params);
+    };
+
+    type SortOrder = 'asc' | 'desc';
+    type SortKey = 'id' | 'last_cooked' | 'frequency' | 'rating';
+
     // 1. Kochbücher laden
     useEffect(() => {
         const loadCookbooks = async () => {
@@ -114,6 +134,27 @@ function RecipeList() {
         loadRecipes();
     }, [loadRecipes, location.pathname]);
 
+    // Sort function
+    const sortRecipes = (recipes: Recipe[], sortBy: SortKey, sortOrder: SortOrder): Recipe[] => {
+        return [...recipes].sort((a, b) => {
+            let valueA = a[sortBy as keyof Recipe];
+            let valueB = b[sortBy as keyof Recipe];
+
+            if (sortBy === 'last_cooked') {
+                const timeA = valueA ? new Date(valueA as string).getTime() : 0;
+                const timeB = valueB ? new Date(valueB as string).getTime() : 0;
+                return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+            }
+
+            const numA = Number(valueA) || 0;
+            const numB = Number(valueB) || 0;
+
+            return sortOrder === 'desc' ? numB - numA : numA - numB;
+        });
+    };
+
+    const filteredAndSortedRecipes = sortRecipes(filteredRecipes, sortBy, sortOrder);
+
     return (
         <div className="min-h-screen bg-gray-100 p-8">
             <div className="max-w-6xl mx-auto">
@@ -143,39 +184,74 @@ function RecipeList() {
                 </div>
 
                 <hr className="mb-3 border-gray-200" />
+                {/* Such- und Sortierbereich */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
 
-                {/* SUCHBEREICH (Dezent unter der Linie) */}
-                <div className="flex justify-between items-center mb-3">
-                    <div className="relative w-full max-w-xs">
-                        <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
-                        <input
-                            type="text"
-                            placeholder="In deinen Rezepten suchen..."
-                            className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-lg shadow-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all outline-none"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        {searchQuery && (
-                            <button
-                                onClick={() => setSearchQuery("")}
-                                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                            >
-                                ✕
-                            </button>
+                    {/* Linke Seite: Suche & Trefferanzahl */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:max-w-2xl">
+                        <div className="relative flex-grow max-w-xs">
+                            <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
+                            <input
+                                type="text"
+                                placeholder="In deinen Rezepten suchen..."
+                                className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-gray-200 rounded-xl shadow-sm focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all outline-none"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Trefferanzahl (dezent daneben oder darunter) */}
+                        {searchQuery.length > 0 && (
+                            <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest whitespace-nowrap bg-green-50 px-2 py-1 rounded-full border border-green-100 animate-fadeIn">
+                                {filteredAndSortedRecipes.length} {filteredAndSortedRecipes.length === 1 ? 'Treffer' : 'Treffer'}
+                            </span>
                         )}
                     </div>
 
-                    {/* Optional: Anzeige der Trefferanzahl */}
-                    {searchQuery.length > 0 && (
-                        <span className="text-[11px] text-green-600 font-bold uppercase tracking-wider animate-fadeIn">
-                            {filteredRecipes.length} {filteredRecipes.length === 1 ? 'Treffer' : 'Treffer'} gefunden
-                        </span>
-                    )}
-                </div>
+                    {/* Rechte Seite: Modernes Sortier-Menü */}
+                    <div className="flex items-center self-end md:self-auto bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-1 shadow-sm transition-shadow hover:shadow-md">
+                        <div className="relative flex items-center">
+                            <select
+                                value={sortBy}
+                                onChange={(e) => updateSort(e.target.value as SortKey, sortOrder)}
+                                className="appearance-none bg-transparent pl-3 pr-8 py-1.5 text-sm font-medium text-gray-700 cursor-pointer focus:outline-none"
+                            >
+                                <option value="id">Neuste</option>
+                                <option value="last_cooked">Zuletzt gekocht</option>
+                                <option value="frequency">Häufigkeit</option>
+                                <option value="rating">Bewertung</option>
+                            </select>
+                            <div className="absolute right-2 pointer-events-none text-gray-400">
+                                <ChevronDown size={14} />
+                            </div>
+                        </div>
 
+                        <div className="w-[1px] h-4 bg-gray-200 mx-1"></div>
+
+                        <button
+                            onClick={() => updateSort(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
+                            className="p-1.5 hover:bg-gray-100 rounded-xl transition-colors text-gray-600 flex items-center justify-center group"
+                            title={sortOrder === 'asc' ? 'Aufsteigend' : 'Absteigend'}
+                        >
+                            {sortOrder === 'asc' ? (
+                                <ArrowUpWideNarrow size={18} className="group-active:scale-90 transition-transform" />
+                            ) : (
+                                <ArrowDownWideNarrow size={18} className="group-active:scale-90 transition-transform" />
+                            )}
+                        </button>
+                    </div>
+                </div>
                 {/* Grid Layout für die Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredRecipes.map((recipe) => (
+                    {filteredAndSortedRecipes.map((recipe) => (
                         <Link key={recipe.id} to={`/recipe/${recipe.id}`} className="group">
                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
                                 <div className="h-48 overflow-hidden">
@@ -481,9 +557,8 @@ function RecipeDetail() {
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="bg-white max-w-md lg:max-w-3xl w-full rounded-2xl shadow-xl overflow-hidden relative">
 
-                {/* Zurück Button */}
                 <button
-                    onClick={() => navigate(fromPath)}
+                    onClick={() => navigate(-1)} // Nutzt den Browser-Verlauf inklusive URL-Params
                     className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition flex items-center gap-2"
                 >
                     <span>&larr;</span>
