@@ -216,9 +216,9 @@ function RecipeList() {
                         )}
                     </div>
 
-                    {/* Rechte Seite: Modernes Sortier-Menü */}
-                    <div className="flex items-center self-end md:self-auto bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-1 shadow-sm transition-shadow hover:shadow-md">
-                        <div className="relative flex items-center">
+                    {/* Modernes Sortier-Menü */}
+                    <div className="flex items-center w-full md:w-auto bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-1 shadow-sm">
+                        <div className="relative flex items-center flex-grow md:flex-none">
                             <select
                                 value={sortBy}
                                 onChange={(e) => updateSort(e.target.value as SortKey, sortOrder)}
