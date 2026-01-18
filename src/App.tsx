@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
@@ -77,10 +77,12 @@ function RecipeList() {
     const [searchQuery, setSearchQuery] = useState("");
 
     // Filter-Logik: Sucht im Titel und in der Beschreibung
-    const filteredRecipes = recipes.filter(recipe =>
-        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // 1. Zuerst die Filterung (Suche)
+    const filteredRecipes = useMemo(() => {
+        return recipes.filter(recipe =>
+            recipe.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [recipes, searchQuery]); // Reagiert sofort, wenn 'recipes' nach dem Löschen neu geladen wird
 
     // Sortier-Logik
     const [searchParams, setSearchParams] = useSearchParams();
@@ -100,27 +102,17 @@ function RecipeList() {
     type SortOrder = 'asc' | 'desc';
     type SortKey = 'id' | 'last_cooked' | 'frequency' | 'rating';
 
-    // 1. Kochbücher laden
-    useEffect(() => {
-        const loadCookbooks = async () => {
-            try {
-                const res = await authenticatedFetch('/api/cookbooks', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }, logout);
-                const data = await res.json();
-                setAllCookbooks(data);
-            } catch (err) { console.error("Error loading cookbooks:", err); }
-        };
-        if (token) loadCookbooks();
-    }, [token, logout, location.key]);
 
-    // 2. Rezepte laden
-    const loadRecipes = useCallback(async () => {
+
+    // Rezepte laden
+    const loadRecipes = useCallback(async (extraHeaders = {}) => {
         if (!token) return;
         try {
-            console.log("Lade Rezepte neu..."); // Zum Debuggen im Browser
             const res = await authenticatedFetch('/api/recipes', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    ...extraHeaders // Hier werden die Force-Refresh Header injiziert
+                }
             }, logout);
             const data = await res.json();
             setRecipes(data);
@@ -129,10 +121,24 @@ function RecipeList() {
         }
     }, [token, logout]);
 
-    // Dieser Effekt feuert jetzt garantiert bei jedem Seitenwechsel
+    // 1. Kochbücher laden
     useEffect(() => {
-        loadRecipes();
-    }, [loadRecipes, location.pathname]);
+        // Prüfen, ob wir von einer Aktion kommen (z.B. Löschen), die frische Daten erzwingt
+        const shouldForce = location.state?.forceRefresh;
+
+        const fetchOptions = shouldForce
+            ? { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            : {};
+
+        // Rezepte laden
+        loadRecipes(fetchOptions);
+
+        // WICHTIG: Den State "verbrauchen"
+        // Das verhindert, dass bei jedem internen Re-Render erneut ein Force-Refresh passiert
+        if (shouldForce) {
+            window.history.replaceState({}, document.title);
+        }
+    }, [token, loadRecipes, location.state]); // location.state triggert den Effekt nach dem navigate
 
     // Sort function
     const sortRecipes = (recipes: Recipe[], sortBy: SortKey, sortOrder: SortOrder): Recipe[] => {
@@ -153,7 +159,10 @@ function RecipeList() {
         });
     };
 
-    const filteredAndSortedRecipes = sortRecipes(filteredRecipes, sortBy, sortOrder);
+    // Sortierung
+    const filteredAndSortedRecipes = useMemo(() => {
+        return sortRecipes(filteredRecipes, sortBy, sortOrder);
+    }, [filteredRecipes, sortBy, sortOrder]); // Reagiert, wenn sich die gefilterte Liste oder Sortierung ändert
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
@@ -512,7 +521,7 @@ function RecipeDetail() {
 
             if (res.ok) {
                 // Nach dem Löschen zurück zur Übersicht
-                navigate('/');
+                navigate('/', { state: { forceRefresh: true } });
             }
         } catch (err) {
             console.error("Fehler beim Löschen:", err);
