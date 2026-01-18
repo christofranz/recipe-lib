@@ -65,7 +65,7 @@ export default function ImportPage() {
 
             const data = await response.json();
             // Navigiert direkt zum neu erstellten Rezept
-            navigate(`/recipe/${data.id}`);
+            navigate(`/recipe/${data.id}`, { state: { from: window.location.pathname } });
 
         } catch (error) {
             if (!(error instanceof Error) || error.message !== "Session abgelaufen") {

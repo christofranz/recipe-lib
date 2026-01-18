@@ -308,6 +308,7 @@ function RecipeDetail() {
     // Prüfen, ob wir eine Information haben, woher der User kam
     const fromPath = location.state?.from || "/";
     const isFromCookbook = fromPath.includes("/cookbook/");
+    const isFromImport = fromPath.includes("/import");
 
     // Always on
     const [isMobile, setIsMobile] = useState(false);
@@ -553,6 +554,7 @@ function RecipeDetail() {
         }
     };
 
+
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="bg-white max-w-md lg:max-w-3xl w-full rounded-2xl shadow-xl overflow-hidden relative">
@@ -562,7 +564,10 @@ function RecipeDetail() {
                     className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition flex items-center gap-2"
                 >
                     <span>&larr;</span>
-                    {isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte'}
+                    {isFromImport
+                        ? 'Zurück zum Import'
+                        : (isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte')
+                    }
                 </button>
 
                 <div className="h-64 relative group overflow-hidden">
