@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useParams, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
@@ -77,10 +77,12 @@ function RecipeList() {
     const [searchQuery, setSearchQuery] = useState("");
 
     // Filter-Logik: Sucht im Titel und in der Beschreibung
-    const filteredRecipes = recipes.filter(recipe =>
-        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // 1. Zuerst die Filterung (Suche)
+    const filteredRecipes = useMemo(() => {
+        return recipes.filter(recipe =>
+            recipe.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [recipes, searchQuery]); // Reagiert sofort, wenn 'recipes' nach dem Löschen neu geladen wird
 
     // Sortier-Logik
     const [searchParams, setSearchParams] = useSearchParams();
@@ -100,27 +102,17 @@ function RecipeList() {
     type SortOrder = 'asc' | 'desc';
     type SortKey = 'id' | 'last_cooked' | 'frequency' | 'rating';
 
-    // 1. Kochbücher laden
-    useEffect(() => {
-        const loadCookbooks = async () => {
-            try {
-                const res = await authenticatedFetch('/api/cookbooks', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }, logout);
-                const data = await res.json();
-                setAllCookbooks(data);
-            } catch (err) { console.error("Error loading cookbooks:", err); }
-        };
-        if (token) loadCookbooks();
-    }, [token, logout, location.key]);
 
-    // 2. Rezepte laden
-    const loadRecipes = useCallback(async () => {
+
+    // Rezepte laden
+    const loadRecipes = useCallback(async (extraHeaders = {}) => {
         if (!token) return;
         try {
-            console.log("Lade Rezepte neu..."); // Zum Debuggen im Browser
             const res = await authenticatedFetch('/api/recipes', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    ...extraHeaders // Hier werden die Force-Refresh Header injiziert
+                }
             }, logout);
             const data = await res.json();
             setRecipes(data);
@@ -129,10 +121,24 @@ function RecipeList() {
         }
     }, [token, logout]);
 
-    // Dieser Effekt feuert jetzt garantiert bei jedem Seitenwechsel
+    // 1. Kochbücher laden
     useEffect(() => {
-        loadRecipes();
-    }, [loadRecipes, location.pathname]);
+        // Prüfen, ob wir von einer Aktion kommen (z.B. Löschen), die frische Daten erzwingt
+        const shouldForce = location.state?.forceRefresh;
+
+        const fetchOptions = shouldForce
+            ? { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+            : {};
+
+        // Rezepte laden
+        loadRecipes(fetchOptions);
+
+        // WICHTIG: Den State "verbrauchen"
+        // Das verhindert, dass bei jedem internen Re-Render erneut ein Force-Refresh passiert
+        if (shouldForce) {
+            window.history.replaceState({}, document.title);
+        }
+    }, [token, loadRecipes, location.state]); // location.state triggert den Effekt nach dem navigate
 
     // Sort function
     const sortRecipes = (recipes: Recipe[], sortBy: SortKey, sortOrder: SortOrder): Recipe[] => {
@@ -153,7 +159,10 @@ function RecipeList() {
         });
     };
 
-    const filteredAndSortedRecipes = sortRecipes(filteredRecipes, sortBy, sortOrder);
+    // Sortierung
+    const filteredAndSortedRecipes = useMemo(() => {
+        return sortRecipes(filteredRecipes, sortBy, sortOrder);
+    }, [filteredRecipes, sortBy, sortOrder]); // Reagiert, wenn sich die gefilterte Liste oder Sortierung ändert
 
     return (
         <div className="min-h-screen bg-gray-100 p-8">
@@ -216,9 +225,9 @@ function RecipeList() {
                         )}
                     </div>
 
-                    {/* Rechte Seite: Modernes Sortier-Menü */}
-                    <div className="flex items-center self-end md:self-auto bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-1 shadow-sm transition-shadow hover:shadow-md">
-                        <div className="relative flex items-center">
+                    {/* Modernes Sortier-Menü */}
+                    <div className="flex items-center w-full md:w-auto bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-1 shadow-sm">
+                        <div className="relative flex items-center flex-grow md:flex-none">
                             <select
                                 value={sortBy}
                                 onChange={(e) => updateSort(e.target.value as SortKey, sortOrder)}
@@ -308,6 +317,7 @@ function RecipeDetail() {
     // Prüfen, ob wir eine Information haben, woher der User kam
     const fromPath = location.state?.from || "/";
     const isFromCookbook = fromPath.includes("/cookbook/");
+    const isFromImport = fromPath.includes("/import");
 
     // Always on
     const [isMobile, setIsMobile] = useState(false);
@@ -511,7 +521,7 @@ function RecipeDetail() {
 
             if (res.ok) {
                 // Nach dem Löschen zurück zur Übersicht
-                navigate('/');
+                navigate('/', { state: { forceRefresh: true } });
             }
         } catch (err) {
             console.error("Fehler beim Löschen:", err);
@@ -553,6 +563,7 @@ function RecipeDetail() {
         }
     };
 
+
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
             <div className="bg-white max-w-md lg:max-w-3xl w-full rounded-2xl shadow-xl overflow-hidden relative">
@@ -562,7 +573,10 @@ function RecipeDetail() {
                     className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition flex items-center gap-2"
                 >
                     <span>&larr;</span>
-                    {isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte'}
+                    {isFromImport
+                        ? 'Zurück zum Import'
+                        : (isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte')
+                    }
                 </button>
 
                 <div className="h-64 relative group overflow-hidden">

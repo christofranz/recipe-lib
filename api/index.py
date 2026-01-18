@@ -355,6 +355,7 @@ def create_cookbook(data: dict, db: Session = Depends(get_db), current_user: Use
     new_cb = CookbookDB(name=data["name"], owner_id=current_user.id)
     db.add(new_cb)
     db.commit()
+    db.refresh(new_cb)
     return new_cb
 
 # Delete a specific cookbook

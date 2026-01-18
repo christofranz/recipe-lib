@@ -36,7 +36,7 @@ export default function CookbookList() {
         if (!newName) return;
 
         try {
-            await authenticatedFetch('/api/cookbooks', {
+            const response = await authenticatedFetch('/api/cookbooks', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -45,8 +45,13 @@ export default function CookbookList() {
                 body: JSON.stringify({ name: newName })
             }, logout);
 
-            setNewName("");
-            fetchCookbooks(); // Liste aktualisieren
+            if (response.ok) {
+                const createdCookbook = await response.json(); // Der Server sollte das neue Objekt inkl. ID zurückgeben
+
+                // Lokalen State sofort aktualisieren
+                setCookbooks(prev => [...prev, createdCookbook]);
+                setNewName(""); // Eingabefeld leeren
+            }
         } catch (err) {
             console.error("Fehler beim Erstellen:", err);
         }
@@ -57,12 +62,20 @@ export default function CookbookList() {
         if (!confirm("Kochbuch wirklich löschen?")) return;
 
         try {
-            await authenticatedFetch(`/api/cookbooks/${id}`, {
+            const response = await authenticatedFetch(`/api/cookbooks/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             }, logout);
 
-            fetchCookbooks(); // Liste aktualisieren
+            if (response.ok) {
+                // OPTIMISTISCHES UPDATE: 
+                // Wir filtern das gelöschte Kochbuch sofort aus dem lokalen State heraus.
+                setCookbooks(prev => prev.filter(cb => cb.id !== id));
+
+                // fetchCookbooks(); // Optional: Kannst du zur Sicherheit trotzdem aufrufen
+            } else {
+                alert("Fehler beim Löschen auf dem Server.");
+            }
         } catch (err) {
             console.error("Fehler beim Löschen:", err);
         }
