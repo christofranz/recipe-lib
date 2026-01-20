@@ -19,6 +19,7 @@ import {
     ArrowUpWideNarrow, ArrowDownWideNarrow,
     ChevronDown
 } from 'lucide-react';
+import Cooklist from './Cooklist';
 
 // --- TYPEN ---
 export interface Recipe {
@@ -37,6 +38,8 @@ export interface Recipe {
     rating: number; // 0 bis 5 Sterne
     cook_count: number; // Wie oft gekocht
     last_cooked: string | null; // ISO Datum des letzten Kochens
+    in_cooklist: boolean; // Ob das Rezept in der Kochliste ist
+    added_to_cooklist_at: string | null; // Datum, wann es zur Kochliste hinzugefügt wurde
 }
 export interface Cookbook {
     id: number;
@@ -183,6 +186,12 @@ function RecipeList() {
                                 📖 Kochbücher
                             </Link>
                             <Link
+                                to="/cooklist"
+                                className={location.pathname === '/cooklist' ? 'text-green-700 font-bold' : 'text-gray-500'}
+                            >
+                                📝 Kochliste
+                            </Link>
+                            <Link
                                 to="/import"
                                 className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
                             >
@@ -318,6 +327,7 @@ function RecipeDetail() {
     const fromPath = location.state?.from || "/";
     const isFromCookbook = fromPath.includes("/cookbook/");
     const isFromImport = fromPath.includes("/import");
+    const isFromCooklist = fromPath.includes("/cooklist");
 
     // Always on
     const [isMobile, setIsMobile] = useState(false);
@@ -563,6 +573,17 @@ function RecipeDetail() {
         }
     };
 
+    // cooklist toggle
+    const toggleCooklist = async () => {
+        const res = await authenticatedFetch(`/api/recipes/${id}/cooklist`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}` }
+        }, logout);
+        if (res.ok) {
+            // Lokalen State im Rezept-Detail aktualisieren
+            setRecipe(prev => prev ? { ...prev, in_cooklist: !prev.in_cooklist } : null);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -573,9 +594,12 @@ function RecipeDetail() {
                     className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition flex items-center gap-2"
                 >
                     <span>&larr;</span>
-                    {isFromImport
-                        ? 'Zurück zum Import'
-                        : (isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte')
+                    {isFromCooklist
+                        ? 'Zurück zur Liste'
+                        : (isFromImport
+                            ? 'Zurück zum Import'
+                            : (isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte')
+                        )
                     }
                 </button>
 
@@ -758,6 +782,12 @@ function RecipeDetail() {
                                 />
                                 <span>Auf die Einkaufsliste setzen</span>
                             </button>
+                            <button
+                                onClick={toggleCooklist}
+                                className={`p-2 rounded-xl border ${recipe.in_cooklist ? 'bg-orange-100 border-orange-200' : 'bg-gray-100'}`}
+                            >
+                                {recipe.in_cooklist ? '🧡 Auf der Kochliste' : '📝 Auf die Kochliste'}
+                            </button>
                         </div>
                     </div>
 
@@ -886,6 +916,9 @@ export default function App() {
                     } />
                     <Route path="/cookbook/:id" element={
                         <ProtectedRoute><CookbookDetail /></ProtectedRoute>
+                    } />
+                    <Route path="/cooklist" element={
+                        <ProtectedRoute><Cooklist /></ProtectedRoute>
                     } />
                     <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
                     <Route path="/accept-share/:token" element={<AcceptShare />} />

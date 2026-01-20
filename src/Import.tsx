@@ -232,6 +232,12 @@ export default function ImportPage() {
                             <Link to="/cookbooks" className="text-gray-500 hover:text-green-600 transition font-medium pb-1">
                                 📖 Kochbücher
                             </Link>
+                            <Link
+                                to="/cooklist"
+                                className={location.pathname === '/cooklist' ? 'text-green-700 font-bold' : 'text-gray-500'}
+                            >
+                                📝 Kochliste
+                            </Link>
                             <span className="text-green-700 font-bold border-b-2 border-green-600 pb-1 cursor-default">
                                 📥 Import
                             </span>

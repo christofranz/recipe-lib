@@ -50,6 +50,10 @@ class RecipeDB(Base):
     # sharing
     is_shared = Column(Boolean, default=False)
 
+    # cooklist
+    in_cooklist = Column(Boolean, default=False)
+    added_to_cooklist_at = Column(DateTime, nullable=True)
+
 
 class RecipeImport(BaseModel):
     url: str
@@ -69,7 +73,7 @@ class RecipeUpdate(BaseModel):
     yields: Optional[int] = None
     notes: Optional[str] = None
     rating: Optional[int] = None
-    
+
 
 class UserDB(Base):
     __tablename__ = "users"

@@ -267,6 +267,7 @@ def mark_as_cooked(id: int, db: Session = Depends(get_db), current_user: UserDB 
         
     recipe.cook_count += 1
     recipe.last_cooked = datetime.datetime.utcnow()
+    recipe.in_cooklist = False  # Automatisch von der Kochliste entfernen
     db.commit()
     return {"cook_count": recipe.cook_count, "last_cooked": recipe.last_cooked}
 
@@ -676,3 +677,12 @@ async def update_recipe_image(recipe_id: int, file: UploadFile = File(...), db: 
     db.commit()
     
     return {"image_url": new_url}
+
+
+@app.patch("/api/recipes/{id}/cooklist")
+def toggle_cooklist(id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(get_current_user)):
+    recipe = db.query(RecipeDB).filter(RecipeDB.id == id, RecipeDB.owner_id == current_user.id).first()
+    recipe.in_cooklist = not recipe.in_cooklist
+    recipe.added_to_cooklist_at = datetime.datetime.now() if recipe.in_cooklist else None
+    db.commit()
+    return {"in_cooklist": recipe.in_cooklist}

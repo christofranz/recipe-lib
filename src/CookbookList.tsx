@@ -100,6 +100,12 @@ export default function CookbookList() {
                                 📖 Kochbücher
                             </span>
                             <Link
+                                to="/cooklist"
+                                className={location.pathname === '/cooklist' ? 'text-green-700 font-bold' : 'text-gray-500'}
+                            >
+                                📝 Kochliste
+                            </Link>
+                            <Link
                                 to="/import"
                                 className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
                             >
