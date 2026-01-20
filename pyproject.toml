@@ -5,19 +5,20 @@ description = "A recipe management application"
 authors = ["Christoph Franzke"]
 readme = "README.md"
 license = "MIT"
+requires-python = ">=3.12"
 dependencies = [
-    fastapi
-    uvicorn
-    sqlalchemy
-    psycopg2-binary
-    jinja2
-    requests
-    beautifulsoup4
-    python-jose[cryptography]
-    bcrypt
-    python-multipart
-    python-dotenv
-    alembic
-    google-genai
-    cloudinary
+    "fastapi",
+    "uvicorn",
+    "sqlalchemy",
+    "psycopg2-binary",
+    "jinja2",
+    "requests",
+    "beautifulsoup4",
+    "python-jose[cryptography]",
+    "bcrypt",
+    "python-multipart",
+    "python-dotenv",
+    "alembic",
+    "google-genai",
+    "cloudinary"
 ]
