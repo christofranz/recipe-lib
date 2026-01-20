@@ -3,18 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { authenticatedFetch } from './api';
 import Header from './Header';
+import { Recipe, PLACEHOLDER_IMAGE } from './App';
 
-// Falls du den Typ Recipe zentral hast, importiere ihn, sonst hier kurz definiert:
-interface Recipe {
-    id: number;
-    title: string;
-    description: string;
-    image_url: string | null;
-    in_cooklist: boolean;
-    added_to_cooklist_at: string | null;
-}
-
-const PLACEHOLDER_IMAGE = "https://via.placeholder.com/400x300?text=Kein+Bild";
 
 export default function Cooklist() {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -101,7 +91,7 @@ export default function Cooklist() {
                             📖 Kochbücher
                         </Link>
                         <span className="text-orange-600 font-bold border-b-2 border-orange-600 pb-1 cursor-default">
-                            🍳 Kochliste
+                            📝 Kochliste
                         </span>
                         <Link to="/import" className="text-gray-500 hover:text-green-600 transition font-medium pb-1">
                             📥 Import
