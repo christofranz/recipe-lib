@@ -9,7 +9,7 @@ import CookbookDetail from './CookbookDetail';
 import CookbookSelector from './CookbookSelector';
 import AcceptShare from './AcceptShare';
 import { authenticatedFetch } from './api';
-import Header from './Header';
+import Header, { SubNav } from './Header';
 // import { TimerIcon, FireIcon, UsersIcon } from './Icons';
 import {
     Timer as TimerIcon,
@@ -175,29 +175,7 @@ function RecipeList() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     {/* LINKE SEITE: Titel & Navigation */}
                     <div>
-                        <nav className="flex gap-4 mt-2">
-                            <span className="text-green-700 font-bold border-b-2 border-green-600 pb-1 cursor-default">
-                                🏠 Rezepte
-                            </span>
-                            <Link
-                                to="/cookbooks"
-                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
-                            >
-                                📖 Kochbücher
-                            </Link>
-                            <Link
-                                to="/cooklist"
-                                className={location.pathname === '/cooklist' ? 'text-green-700 font-bold' : 'text-gray-500'}
-                            >
-                                📝 Kochliste
-                            </Link>
-                            <Link
-                                to="/import"
-                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
-                            >
-                                📥 Import
-                            </Link>
-                        </nav>
+                        <SubNav />
                     </div>
                 </div>
 

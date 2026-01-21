@@ -43,3 +43,13 @@
     position: absolute;
     animation: scan-line 2s linear infinite;
 }
+
+/* Versteckt den Scrollbalken in der Navigation */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

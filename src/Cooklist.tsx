@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { authenticatedFetch } from './api';
-import Header from './Header';
+import Header, { SubNav } from './Header';
 import { Recipe, PLACEHOLDER_IMAGE } from './App';
 
 
@@ -83,20 +83,9 @@ export default function Cooklist() {
                 <Header />
 
                 <div className="flex justify-between items-center mb-6">
-                    <nav className="flex gap-4 mt-2">
-                        <Link to="/" className="text-gray-500 hover:text-green-600 transition font-medium pb-1">
-                            🏠 Rezepte
-                        </Link>
-                        <Link to="/cookbooks" className="text-gray-500 hover:text-green-600 transition font-medium pb-1">
-                            📖 Kochbücher
-                        </Link>
-                        <span className="text-orange-600 font-bold border-b-2 border-orange-600 pb-1 cursor-default">
-                            📝 Kochliste
-                        </span>
-                        <Link to="/import" className="text-gray-500 hover:text-green-600 transition font-medium pb-1">
-                            📥 Import
-                        </Link>
-                    </nav>
+                    <div>
+                        <SubNav />
+                    </div>
 
                     <div className="text-sm font-medium text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200">
                         {recipes.length} Rezepte geplant
