@@ -362,7 +362,13 @@ function RecipeDetail() {
         const loadRecipe = async () => {
             try {
                 const res = await authenticatedFetch(`/api/recipes/${id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    },
+
                 }, logout);
 
                 if (!res.ok) {
