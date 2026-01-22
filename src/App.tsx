@@ -9,7 +9,7 @@ import CookbookDetail from './CookbookDetail';
 import CookbookSelector from './CookbookSelector';
 import AcceptShare from './AcceptShare';
 import { authenticatedFetch } from './api';
-import Header from './Header';
+import Header, { SubNav } from './Header';
 // import { TimerIcon, FireIcon, UsersIcon } from './Icons';
 import {
     Timer as TimerIcon,
@@ -19,6 +19,7 @@ import {
     ArrowUpWideNarrow, ArrowDownWideNarrow,
     ChevronDown
 } from 'lucide-react';
+import Cooklist from './Cooklist';
 
 // --- TYPEN ---
 export interface Recipe {
@@ -37,6 +38,8 @@ export interface Recipe {
     rating: number; // 0 bis 5 Sterne
     cook_count: number; // Wie oft gekocht
     last_cooked: string | null; // ISO Datum des letzten Kochens
+    in_cooklist: boolean; // Ob das Rezept in der Kochliste ist
+    added_to_cooklist_at: string | null; // Datum, wann es zur Kochliste hinzugefügt wurde
 }
 export interface Cookbook {
     id: number;
@@ -53,7 +56,7 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
     return children;
 }
 
-const PLACEHOLDER_IMAGE = "https://icon-library.com/images/photo-placeholder-icon/photo-placeholder-icon-7.jpg";
+export const PLACEHOLDER_IMAGE = "https://icon-library.com/images/photo-placeholder-icon/photo-placeholder-icon-7.jpg";
 
 // --- KOMPONENTE 1: ÜBERSICHTSLISTE (HOME) ---
 function RecipeList() {
@@ -172,23 +175,7 @@ function RecipeList() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     {/* LINKE SEITE: Titel & Navigation */}
                     <div>
-                        <nav className="flex gap-4 mt-2">
-                            <span className="text-green-700 font-bold border-b-2 border-green-600 pb-1 cursor-default">
-                                🏠 Rezepte
-                            </span>
-                            <Link
-                                to="/cookbooks"
-                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
-                            >
-                                📖 Kochbücher
-                            </Link>
-                            <Link
-                                to="/import"
-                                className="text-gray-500 hover:text-green-600 transition font-medium pb-1"
-                            >
-                                📥 Import
-                            </Link>
-                        </nav>
+                        <SubNav />
                     </div>
                 </div>
 
@@ -318,6 +305,7 @@ function RecipeDetail() {
     const fromPath = location.state?.from || "/";
     const isFromCookbook = fromPath.includes("/cookbook/");
     const isFromImport = fromPath.includes("/import");
+    const isFromCooklist = fromPath.includes("/cooklist");
 
     // Always on
     const [isMobile, setIsMobile] = useState(false);
@@ -374,7 +362,13 @@ function RecipeDetail() {
         const loadRecipe = async () => {
             try {
                 const res = await authenticatedFetch(`/api/recipes/${id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    },
+
                 }, logout);
 
                 if (!res.ok) {
@@ -500,7 +494,8 @@ function RecipeDetail() {
                 setRecipe(prev => prev ? {
                     ...prev,
                     cook_count: data.cook_count,
-                    last_cooked: data.last_cooked
+                    last_cooked: data.last_cooked,
+                    in_cooklist: false
                 } : null);
             }
         } catch (err) {
@@ -563,6 +558,17 @@ function RecipeDetail() {
         }
     };
 
+    // cooklist toggle
+    const toggleCooklist = async () => {
+        const res = await authenticatedFetch(`/api/recipes/${id}/cooklist`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}` }
+        }, logout);
+        if (res.ok) {
+            // Lokalen State im Rezept-Detail aktualisieren
+            setRecipe(prev => prev ? { ...prev, in_cooklist: !prev.in_cooklist } : null);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -573,9 +579,12 @@ function RecipeDetail() {
                     className="absolute top-4 left-4 z-10 bg-black/50 hover:bg-black/70 text-white px-4 py-2 rounded-full text-sm font-bold backdrop-blur-sm transition flex items-center gap-2"
                 >
                     <span>&larr;</span>
-                    {isFromImport
-                        ? 'Zurück zum Import'
-                        : (isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte')
+                    {isFromCooklist
+                        ? 'Zurück zur Liste'
+                        : (isFromImport
+                            ? 'Zurück zum Import'
+                            : (isFromCookbook ? 'Zurück zum Kochbuch' : 'Alle Rezepte')
+                        )
                     }
                 </button>
 
@@ -739,24 +748,53 @@ function RecipeDetail() {
                             />
                         </div>
                     </div>
-                    <div className="
-                        flex flex-col gap-2 
-                        lg:flex-row lg:justify-between lg:items-center 
-                        mb-4 border-b pb-4
-                    ">
-                        <h2 className="font-bold text-lg">Zutaten</h2>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:justify-between lg:items-center mb-6 border-b pb-6">
+                        <h2 className="font-bold text-2xl text-gray-800">Zutaten</h2>
 
-                        <div className="w-full lg:w-auto flex justify-start">
+                        {/* Container für die Buttons: Stack auf Mobile, Reihe auf Desktop */}
+                        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+
+                            {/* Bring! Button */}
                             <button
                                 onClick={handleBringClick}
-                                className="bring-recipe-button w-auto flex items-center gap-2 cursor-pointer"
+                                className="
+                bring-recipe-button 
+                flex-1 sm:flex-none
+                flex items-center justify-center gap-3 
+                px-5 py-2.5 rounded-xl 
+                text-sm font-semibold 
+                transition-all active:scale-95 shadow-sm
+            "
                             >
                                 <img
+
                                     src="data:image/svg+xml,%3csvg%20width='18'%20height='25'%20viewBox='0%200%2018%2025'%20fill='none'%20xmlns='http://www.w3.org/2000/svg'%3e%3cpath%20d='M11.5419%204.43201L13.1396%204.35939C13.1396%204.35939%2013.1396%202.61644%2012.9944%202.4712C12.8491%202.25333%2011.8324%201.16399%2011.1788%200.94612C10.5978%200.873497%209.36321%201.30923%209.14534%201.38186C9.14534%201.38186%209.07272%201.38186%209.07272%201.45448C8.92748%201.67235%208.20125%202.68907%208.12863%203.1248C7.98338%203.41529%207.83813%204.50463%207.83813%204.50463H8.56436H9.0001C9.0001%204.50463%209.14534%202.76169%209.07272%202.68907C9.72633%202.61644%2010.6704%202.39858%2011.1062%202.54382C11.324%202.54382%2011.5419%204.43201%2011.5419%204.43201Z'%20fill='white'/%3e%3cpath%20d='M3.98901%204.64975L5.29622%204.57713C5.29622%204.57713%205.2236%202.83418%205.51409%202.47107C6.02245%202.2532%206.45819%202.18058%206.89392%202.10795C7.32966%202.10795%208.34638%201.96271%208.34638%202.18058C8.419%202.39845%208.49162%203.56041%208.49162%204.43188C9.72621%204.43188%209.72621%204.43188%209.72621%204.43188L9.43572%201.96271C9.43572%201.96271%208.49162%200.582877%208.12851%200.510254C7.91064%200.510254%207.54753%200.510254%206.74868%200.728122C5.94983%200.945991%205.58671%201.09124%205.58671%201.09124%205.15098%201.3091%204.71524%202.03533C4.20688%202.68894%204.13426%202.83418%204.13426%202.83418C4.13426%202.83418%203.98901%203.8509%203.98901%204.64975Z'%20fill='white'/%3e%3cpath%20d='M0.140011%2022.2971C0.140011%2022.2971%200.64837%2022.5876%201.59247%2022.8054C2.53656%2023.0233%2012.6311%2024.9841%2013.43%2024.4031C13.43%2023.3138%2013.0669%204.28662%2013.0669%204.28662C13.0669%204.28662%201.3746%204.43187%200.93886%204.72236C0.93886%204.72236%200.866238%204.79498%200.793616%204.94023C0.720993%205.08547%200.64837%205.37596%200.64837%205.66645C0.575747%207.4094%200.430501%2011.1132%200.285256%2014.5991C0.0673876%2018.5207%20-0.15048%2022.0792%200.140011%2022.2971Z'%20fill='white'/%3e%3cpath%20d='M13.4299%2024.4031C13.4299%2024.4031%2017.2063%2021.9339%2017.4241%2021.2803C17.3515%2020.1184%2016.9158%204.72236%2016.48%204.64973C16.0443%204.43187%2013.0668%204.28662%2013.0668%204.28662L13.4299%2024.4031Z'%20fill='%234FABA2'/%3e%3cpath%20d='M3.3354%2012.6381L5.65933%2014.381L10.0167%208.78906L11.6144%2010.1689L5.80457%2017.7217L1.95557%2014.3084L3.3354%2012.6381Z'%20fill='%2324A599'/%3e%3c/svg%3e"
                                     alt="Bring! Logo"
-                                    className="w-4 h-4"
+                                    className="w-5 h-5"
                                 />
-                                <span>Auf die Einkaufsliste setzen</span>
+                                <span>Einkaufsliste</span>
+                            </button>
+
+                            {/* Kochlisten Button */}
+                            <button
+                                onClick={toggleCooklist}
+                                className={`
+                flex-1 sm:flex-none
+                flex items-center justify-center gap-3 
+                px-5 py-2.5 rounded-xl text-sm font-semibold 
+                transition-all duration-200 active:scale-95 shadow-sm border
+                ${recipe.in_cooklist
+                                        ? 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
+                                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                                    }
+            `}
+                            >
+                                <span className="text-lg leading-none">
+                                    {recipe.in_cooklist ? '🧡' : '📋'}
+                                </span>
+                                <span>
+                                    {recipe.in_cooklist ? 'Gemerkt' : 'Kochliste'}
+                                </span>
                             </button>
                         </div>
                     </div>
@@ -886,6 +924,9 @@ export default function App() {
                     } />
                     <Route path="/cookbook/:id" element={
                         <ProtectedRoute><CookbookDetail /></ProtectedRoute>
+                    } />
+                    <Route path="/cooklist" element={
+                        <ProtectedRoute><Cooklist /></ProtectedRoute>
                     } />
                     <Route path="/import" element={<ProtectedRoute><ImportPage /></ProtectedRoute>} />
                     <Route path="/accept-share/:token" element={<AcceptShare />} />
