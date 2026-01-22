@@ -494,7 +494,8 @@ function RecipeDetail() {
                 setRecipe(prev => prev ? {
                     ...prev,
                     cook_count: data.cook_count,
-                    last_cooked: data.last_cooked
+                    last_cooked: data.last_cooked,
+                    in_cooklist: false
                 } : null);
             }
         } catch (err) {
@@ -792,7 +793,7 @@ function RecipeDetail() {
                                     {recipe.in_cooklist ? '🧡' : '📋'}
                                 </span>
                                 <span>
-                                    {recipe.in_cooklist ? 'Auf der Kochliste' : 'Auf die Kochliste'}
+                                    {recipe.in_cooklist ? 'Gemerkt' : 'Kochliste'}
                                 </span>
                             </button>
                         </div>
