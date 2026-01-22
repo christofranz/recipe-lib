@@ -78,30 +78,36 @@ export default function Cooklist() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-6xl mx-auto">
-                <Header />
+        <div className="min-h-screen bg-gray-100">
+            {/* OBERER BEREICH: Konsistent mit Rezepte & Kochbücher) */}
+            <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-4">
+                <div className="max-w-6xl mx-auto px-4 md:px-8">
+                    <Header />
+                    <SubNav />
+                </div>
+            </div>
 
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <SubNav />
-                    </div>
-
-                    <div className="text-sm font-medium text-gray-500 bg-white px-4 py-2 rounded-full shadow-sm border border-gray-200">
-                        {recipes.length} Rezepte geplant
-                    </div>
+            {/* UNTERER BEREICH: Grauer Content-Bereich */}
+            <div className="max-w-6xl mx-auto p-4 md:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                    {recipes.length > 0 && (
+                        <div className="w-fit text-sm font-medium text-orange-600 bg-orange-50 px-4 py-2 rounded-full shadow-sm border border-orange-100 animate-fadeIn">
+                            {recipes.length} {recipes.length === 1 ? 'Rezept geplant' : 'Rezepte geplant'}
+                        </div>
+                    )}
                 </div>
 
-                <hr className="mb-8 border-gray-200" />
-
+                {/* CONTENT: Loader, Empty State oder Grid */}
                 {loading ? (
                     <div className="text-center py-20 text-gray-500">Lade Kochliste...</div>
                 ) : recipes.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-300">
+                    <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-300 shadow-sm">
                         <div className="text-5xl mb-4">🥗</div>
                         <h3 className="text-xl font-bold text-gray-800">Deine Kochliste ist leer</h3>
-                        <p className="text-gray-500 mt-2">Füge Rezepte über die Detailseite hinzu, um deinen nächsten Einkauf zu planen.</p>
-                        <Link to="/" className="inline-block mt-6 bg-green-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-green-700 transition">
+                        <p className="text-gray-500 mt-2 px-4">
+                            Füge Rezepte über die Detailseite hinzu, um deinen nächsten Einkauf zu planen.
+                        </p>
+                        <Link to="/" className="inline-block mt-6 bg-green-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-green-700 transition active:scale-95">
                             Rezepte durchstöbern
                         </Link>
                     </div>

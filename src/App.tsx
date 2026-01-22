@@ -168,20 +168,20 @@ function RecipeList() {
     }, [filteredRecipes, sortBy, sortOrder]); // Reagiert, wenn sich die gefilterte Liste oder Sortierung ändert
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-6xl mx-auto">
-                <Header /> {/* Logout Button oben rechts */}
-
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    {/* LINKE SEITE: Titel & Navigation */}
-                    <div>
-                        <SubNav />
-                    </div>
+        <div className="min-h-screen bg-gray-100">
+            {/* OBERER BEREICH: (identisch zu CookbookList) */}
+            <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-4">
+                <div className="max-w-6xl mx-auto px-4 md:px-8">
+                    <Header />
+                    <SubNav />
                 </div>
+            </div>
 
-                <hr className="mb-3 border-gray-200" />
-                {/* Such- und Sortierbereich */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            {/* UNTERER BEREICH: Grauer Hintergrund für Content */}
+            <div className="max-w-6xl mx-auto p-4 md:p-8">
+
+                {/* Such- und Sortierbereich: Ohne extra <hr/> oben, da die border-b vom Header reicht */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
 
                     {/* Linke Seite: Suche & Trefferanzahl */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:max-w-2xl">
@@ -204,21 +204,21 @@ function RecipeList() {
                             )}
                         </div>
 
-                        {/* Trefferanzahl (dezent daneben oder darunter) */}
+                        {/* Trefferanzahl */}
                         {searchQuery.length > 0 && (
-                            <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest whitespace-nowrap bg-green-50 px-2 py-1 rounded-full border border-green-100 animate-fadeIn">
+                            <span className="text-[10px] text-green-600 font-bold uppercase tracking-widest whitespace-nowrap bg-green-50 px-3 py-1.5 rounded-full border border-green-100 animate-fadeIn h-fit">
                                 {filteredAndSortedRecipes.length} {filteredAndSortedRecipes.length === 1 ? 'Treffer' : 'Treffer'}
                             </span>
                         )}
                     </div>
 
                     {/* Modernes Sortier-Menü */}
-                    <div className="flex items-center w-full md:w-auto bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-1 shadow-sm">
+                    <div className="flex items-center w-full md:w-auto bg-white border border-gray-200 rounded-2xl p-1 shadow-sm">
                         <div className="relative flex items-center flex-grow md:flex-none">
                             <select
                                 value={sortBy}
                                 onChange={(e) => updateSort(e.target.value as SortKey, sortOrder)}
-                                className="appearance-none bg-transparent pl-3 pr-8 py-1.5 text-sm font-medium text-gray-700 cursor-pointer focus:outline-none"
+                                className="appearance-none bg-transparent pl-3 pr-8 py-1.5 text-sm font-medium text-gray-700 cursor-pointer focus:outline-none min-w-[140px]"
                             >
                                 <option value="id">Neuste</option>
                                 <option value="last_cooked">Zuletzt gekocht</option>
@@ -571,7 +571,7 @@ function RecipeDetail() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
             <div className="bg-white max-w-md lg:max-w-3xl w-full rounded-2xl shadow-xl overflow-hidden relative">
 
                 <button

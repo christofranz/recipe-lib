@@ -44,14 +44,13 @@
     animation: scan-line 2s linear infinite;
 }
 
-/* Versteckt die Scrollbar in der Navigation */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
+@layer utilities {
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
 
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    /* IE and Edge */
-    scrollbar-width: none;
-    /* Firefox */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
 }

@@ -170,7 +170,7 @@ export default function ImportPage() {
 
     return (
 
-        <div className="min-h-screen bg-gray-100 p-8">
+        <div className="min-h-screen bg-gray-100">
             {/* 1. DAS LADE-OVERLAY (Wird nur angezeigt, wenn isImporting true ist) */}
             {isScanning && (
                 <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center p-6 text-center">
@@ -220,16 +220,16 @@ export default function ImportPage() {
                     </div>
                 </div>
             )}
-            <div className="max-w-6xl mx-auto">
-                <Header />
-
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div>
-                        <SubNav />
-                    </div>
+            {/* OBERER BEREICH: Weißer Header-Block (Konsistent mit allen anderen Seiten) */}
+            <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-4">
+                <div className="max-w-6xl mx-auto px-4 md:px-8">
+                    <Header />
+                    <SubNav />
                 </div>
+            </div>
 
-                <hr className="mb-3 border-gray-200" />
+            {/* UNTERER BEREICH: Content */}
+            <div className="bg-gray-100max-w-6xl mx-auto p-4 md:p-8">
 
                 {/* ZENTRALE IMPORT CARD */}
                 <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
