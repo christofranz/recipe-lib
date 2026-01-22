@@ -82,36 +82,40 @@ export default function CookbookList() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 p-8">
-            <div className="max-w-6xl mx-auto">
-                <Header />
+        <div className="min-h-screen bg-gray-100">
+            {/* OBERER BEREICH: Header und Nav */}
+            <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-4">
+                <div className="max-w-6xl mx-auto px-4 md:px-8">
+                    <Header />
+                    <SubNav />
+                </div>
+            </div>
 
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    {/* LINKE SEITE: Navigation (identisch zur RecipeList) */}
-                    <div>
-                        <SubNav />
-                    </div>
+            {/* UNTERER BEREICH: Grauer Hintergrund für Content */}
+            <div className="max-w-6xl mx-auto p-4 md:p-8">
 
-                    {/* RECHTE SEITE: Neues Kochbuch erstellen */}
+                {/* AKTIONEN: Erstellen-Bereich */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                    <h2 className="text-xl font-bold text-gray-800">📖 Deine Kochbücher</h2>
+
                     <div className="flex gap-2 w-full md:w-auto">
                         <input
                             type="text"
                             placeholder="Neues Kochbuch Name..."
-                            className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-green-500 shadow-sm"
                             value={newName}
                             onChange={(e) => setNewName(e.target.value)}
                         />
                         <button
                             onClick={handleCreate}
-                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition"
+                            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold transition shadow-md active:scale-95"
                         >
                             Erstellen
                         </button>
                     </div>
                 </div>
 
-                <hr className="mb-3 border-gray-200" />
-
+                {/* GRID: Die Kochbuch-Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {cookbooks.map((cb) => (
                         <div key={cb.id} className="group relative">
