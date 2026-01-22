@@ -34,31 +34,28 @@ export function SubNav() {
     };
 
     return (
-        <div className="w-full">
-            {/* overflow-x-auto: Erlaubt horizontales Scrollen
-                scrollbar-hide: (Optional) Versteckt den Scrollbalken für sauberen Look
-                flex: Hält alles in einer Reihe
-            */}
+        <div className="relative w-full overflow-hidden">
+
+            {/* Schatten-Indikator rechts (nur sichtbar wenn Scroll möglich) 
+                Dies signalisiert dem User: "Hier geht es weiter" */}
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none z-10 md:hidden" />
+
             <nav className="
-                flex gap-6 mt-2 
+                flex gap-5 mt-2 
                 overflow-x-auto 
                 scrollbar-hide 
                 -webkit-overflow-scrolling-touch
-                border-b border-gray-100 md:border-none
+                /* Padding rechts hinzufügen, damit der letzte Punkt nicht am Rand klebt */
+                pr-10 md:pr-0
             ">
-                <Link to="/" className={getLinkStyle('/')}>
-                    🏠 Rezepte
-                </Link>
-                <Link to="/cookbooks" className={getLinkStyle('/cookbooks')}>
-                    📖 Kochbücher
-                </Link>
-                <Link to="/cooklist" className={getLinkStyle('/cooklist')}>
-                    📋 Kochliste
-                </Link>
-                <Link to="/import" className={getLinkStyle('/import')}>
-                    📥 Import
-                </Link>
+                <Link to="/" className={getLinkStyle('/')}>🏠 Rezepte</Link>
+                <Link to="/cookbooks" className={getLinkStyle('/cookbooks')}>📖 Kochbücher</Link>
+                <Link to="/cooklist" className={getLinkStyle('/cooklist')}>📋 Kochliste</Link>
+                <Link to="/import" className={getLinkStyle('/import')}>📥 Import</Link>
             </nav>
+
+            {/* Eine feine graue Linie über die volle Breite */}
+            <div className="h-[1px] w-full bg-gray-100 -mt-[1px]" />
         </div>
     );
 }
