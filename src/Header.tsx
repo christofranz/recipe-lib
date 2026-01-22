@@ -24,38 +24,41 @@ export function SubNav() {
     const getLinkStyle = (path: string) => {
         const isActive = location.pathname === path;
 
-        const base = "transition font-medium pb-2 whitespace-nowrap text-sm md:text-base ";
+        // shrink-0 verhindert das Zusammenquetschen der Texte
+        const base = "transition-all duration-200 font-medium pb-3 whitespace-nowrap text-sm md:text-base shrink-0 border-b-2 ";
 
         if (isActive) {
             return base + "text-green-700 font-bold border-b-2 border-green-600";
         }
 
-        return base + "text-gray-500 hover:text-green-600";
+        return base + "text-gray-500 hover:text-green-600 border-transparent";
     };
 
     return (
-        <div className="relative w-full overflow-hidden">
-
-            {/* Schatten-Indikator rechts (nur sichtbar wenn Scroll möglich) 
-                Dies signalisiert dem User: "Hier geht es weiter" */}
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none z-10 md:hidden" />
-
+        <div className="w-full bg-white">
+            {/* max-w-full: Stellt sicher, dass das Menü nie breiter als das Handy ist.
+               flex: Damit die Links nebeneinander liegen.
+               overflow-x-auto: Aktiviert das Wischen ohne Scrollbar.
+            */}
             <nav className="
-                flex gap-5 mt-2 
+                flex 
+                items-center 
+                gap-6 
                 overflow-x-auto 
                 scrollbar-hide 
-                -webkit-overflow-scrolling-touch
-                /* Padding rechts hinzufügen, damit der letzte Punkt nicht am Rand klebt */
-                pr-10 md:pr-0
+                -webkit-overflow-scrolling-touch 
+                px-4 
+                md:px-0
+                border-b border-gray-100
             ">
                 <Link to="/" className={getLinkStyle('/')}>🏠 Rezepte</Link>
                 <Link to="/cookbooks" className={getLinkStyle('/cookbooks')}>📖 Kochbücher</Link>
                 <Link to="/cooklist" className={getLinkStyle('/cooklist')}>📋 Kochliste</Link>
                 <Link to="/import" className={getLinkStyle('/import')}>📥 Import</Link>
-            </nav>
 
-            {/* Eine feine graue Linie über die volle Breite */}
-            <div className="h-[1px] w-full bg-gray-100 -mt-[1px]" />
+                {/* Ein kleiner unsichtbarer Puffer am Ende, damit der letzte Punkt nicht klebt */}
+                <div className="w-4 shrink-0 h-1"></div>
+            </nav>
         </div>
     );
 }
