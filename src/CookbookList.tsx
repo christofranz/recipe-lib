@@ -84,16 +84,17 @@ export default function CookbookList() {
     return (
         <div className="min-h-screen bg-gray-100">
             {/* OBERER BEREICH */}
-            <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-4">
+            <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-2"> {/* pb-2 statt pb-4 für feineren Abschluss zur Linie */}
                 <div className="max-w-6xl mx-auto">
-                    {/* Header braucht Padding, damit der Text nicht am Rand klebt */}
-                    <div className="px-4 md:px-8">
+                    {/* 1. Header mit Abstand nach unten zur Nav */}
+                    <div className="px-4 md:px-8 mb-4"> {/* mb-4 sorgt für Luft zwischen Logo und Pillen */}
                         <Header />
                     </div>
 
-                    {/* SubNav kriegt KEIN Padding vom Parent, 
-                        da sie ihr eigenes px-4 für das Scroll-Feeling hat */}
-                    <SubNav />
+                    {/* 2. SubNav (ohne extra Padding im Container für Full-Width Scroll) */}
+                    <div className="mb-1"> {/* Kleiner Puffer zur Trennlinie */}
+                        <SubNav />
+                    </div>
                 </div>
             </div>
 

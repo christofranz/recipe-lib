@@ -67,7 +67,7 @@ export function SubNav() {
             return base + "bg-green-600 text-white shadow-sm active-pill";
         }
 
-        return base + "bg-gray-100 text-gray-600 hover:bg-gray-200";
+        return base + "bg-gray-200 text-gray-600 hover:bg-gray-200";
     };
 
     return (
