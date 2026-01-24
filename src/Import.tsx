@@ -220,10 +220,16 @@ export default function ImportPage() {
                     </div>
                 </div>
             )}
-            {/* OBERER BEREICH: Weißer Header-Block (Konsistent mit allen anderen Seiten) */}
+            {/* OBERER BEREICH */}
             <div className="bg-gray-100 border-b border-gray-200 pt-8 pb-4">
-                <div className="max-w-6xl mx-auto px-4 md:px-8">
-                    <Header />
+                <div className="max-w-6xl mx-auto">
+                    {/* Header braucht Padding, damit der Text nicht am Rand klebt */}
+                    <div className="px-4 md:px-8">
+                        <Header />
+                    </div>
+
+                    {/* SubNav kriegt KEIN Padding vom Parent, 
+            da sie ihr eigenes px-4 für das Scroll-Feeling hat */}
                     <SubNav />
                 </div>
             </div>
