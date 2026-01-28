@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { Cookbook } from './App';
 import { authenticatedFetch } from './api';
@@ -11,6 +11,8 @@ export default function CookbookDetail() {
     const [cookbook, setCookbook] = useState<Cookbook | null>(null);
     const { token, logout } = useAuth();
     const [loading, setLoading] = useState(true);
+    const location = useLocation();
+    const savedHeight = sessionStorage.getItem(`scroll-${location.pathname}-height`);
 
 
     // 1. Such-Query State
@@ -123,63 +125,69 @@ export default function CookbookDetail() {
                     </div>
                 </div>
                 {/* Grid Layout für die Karten (Exakte Kopie) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {/* FALLS LADEND: Zeige 6 Platzhalter-Karten */}
-                    {loading && (
-                        <>
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse border border-gray-100">
-                                    {/* Bild-Platzhalter */}
-                                    <div className="h-48 bg-gray-200" />
-                                    <div className="p-5">
-                                        {/* Titel-Platzhalter */}
-                                        <div className="h-6 bg-gray-200 rounded w-3/4 mb-4" />
-                                        {/* Text-Platzhalter (3 Zeilen für line-clamp-3 Optik) */}
-                                        <div className="space-y-2">
-                                            <div className="h-4 bg-gray-100 rounded w-full" />
-                                            <div className="h-4 bg-gray-100 rounded w-full" />
-                                            <div className="h-4 bg-gray-100 rounded w-2/3" />
+                <div
+                    style={{
+                        minHeight: loading && savedHeight ? `${savedHeight}px` : 'auto'
+                    }}
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {/* FALLS LADEND: Zeige 6 Platzhalter-Karten */}
+                        {loading && (
+                            <>
+                                {[...Array(6)].map((_, i) => (
+                                    <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse border border-gray-100">
+                                        {/* Bild-Platzhalter */}
+                                        <div className="h-48 bg-gray-200" />
+                                        <div className="p-5">
+                                            {/* Titel-Platzhalter */}
+                                            <div className="h-6 bg-gray-200 rounded w-3/4 mb-4" />
+                                            {/* Text-Platzhalter (3 Zeilen für line-clamp-3 Optik) */}
+                                            <div className="space-y-2">
+                                                <div className="h-4 bg-gray-100 rounded w-full" />
+                                                <div className="h-4 bg-gray-100 rounded w-full" />
+                                                <div className="h-4 bg-gray-100 rounded w-2/3" />
+                                            </div>
+                                            {/* Button-Platzhalter */}
+                                            <div className="h-4 bg-gray-100 rounded w-24 mt-6" />
                                         </div>
-                                        {/* Button-Platzhalter */}
-                                        <div className="h-4 bg-gray-100 rounded w-24 mt-6" />
                                     </div>
-                                </div>
-                            ))}
-                        </>
-                    )}
-                    {!loading && cookbook.recipes && cookbook.recipes.length > 0 ? (
-                        filteredRecipes.map((recipe) => (
-                            <Link key={recipe.id} to={`/recipe/${recipe.id}`} state={{ from: window.location.pathname }} className="group">
-                                <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
-                                    <div className="h-48 overflow-hidden">
-                                        <img
-                                            src={recipe.image_url}
-                                            alt={recipe.title}
-                                            className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
-                                        />
+                                ))}
+                            </>
+                        )}
+                        {!loading && cookbook.recipes && cookbook.recipes.length > 0 ? (
+                            filteredRecipes.map((recipe) => (
+                                <Link key={recipe.id} to={`/recipe/${recipe.id}`} state={{ from: window.location.pathname }} className="group">
+                                    <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
+                                        <div className="h-48 overflow-hidden">
+                                            <img
+                                                src={recipe.image_url}
+                                                alt={recipe.title}
+                                                className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                                            />
+                                        </div>
+                                        <div className="p-5 flex-grow">
+                                            <h2 className="text-xl font-bold mb-2 text-gray-800">{recipe.title}</h2>
+                                            <p className="text-gray-600 line-clamp-3 text-sm">{recipe.description}</p>
+                                        </div>
+                                        <div className="p-5 pt-0 mt-auto">
+                                            <span className="text-red-500 font-semibold text-sm group-hover:underline">
+                                                Zum Rezept &rarr;
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="p-5 flex-grow">
-                                        <h2 className="text-xl font-bold mb-2 text-gray-800">{recipe.title}</h2>
-                                        <p className="text-gray-600 line-clamp-3 text-sm">{recipe.description}</p>
-                                    </div>
-                                    <div className="p-5 pt-0 mt-auto">
-                                        <span className="text-red-500 font-semibold text-sm group-hover:underline">
-                                            Zum Rezept &rarr;
-                                        </span>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))
-                    ) : (
-                        <div className="col-span-full text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
-                            <p className="text-gray-500">Dieses Kochbuch ist noch leer.</p>
-                            <Link to="/" className="text-green-600 font-bold mt-2 inline-block">
-                                Rezepte hinzufügen &rarr;
-                            </Link>
-                        </div>
-                    )}
+                                </Link>
+                            ))
+                        ) : (
+                            <div className="col-span-full text-center py-12 bg-white rounded-xl border-2 border-dashed border-gray-300">
+                                <p className="text-gray-500">Dieses Kochbuch ist noch leer.</p>
+                                <Link to="/" className="text-green-600 font-bold mt-2 inline-block">
+                                    Rezepte hinzufügen &rarr;
+                                </Link>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

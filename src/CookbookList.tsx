@@ -103,7 +103,6 @@ export default function CookbookList() {
 
                 {/* AKTIONEN: Erstellen-Bereich */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                    <h2 className="text-xl font-bold text-gray-800">📖 Deine Kochbücher</h2>
 
                     <div className="flex gap-2 w-full md:w-auto">
                         <input
