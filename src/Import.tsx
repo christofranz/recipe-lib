@@ -119,7 +119,7 @@ export default function ImportPage() {
             }
 
             const data = await response.json();
-            navigate(`/recipe/${data.id}`);
+            navigate(`/recipe/${data.id}`, { state: { from: window.location.pathname } })
 
         } catch (error) {
             // PRÜFUNG: Wenn der Fehler durch .abort() ausgelöst wurde, tu nichts (oder logge es nur)
