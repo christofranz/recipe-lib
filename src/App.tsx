@@ -16,7 +16,7 @@ import {
     Flame as FireIcon,
     Users as UsersIcon,
     Camera, Edit2, Check, X, Trash2, Share2, Star,
-    ArrowUpWideNarrow, ArrowDownWideNarrow,
+    ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowUp,
     ChevronDown
 } from 'lucide-react';
 import Cooklist from './Cooklist';
@@ -69,13 +69,18 @@ function ScrollMemory() {
         if (navType === 'POP') {
             const savedPosition = sessionStorage.getItem(scrollKey);
             if (savedPosition) {
-                // Kleiner Timeout für Render-Sicherheit
-                setTimeout(() => {
-                    window.scrollTo({
-                        top: parseInt(savedPosition),
-                        behavior: 'instant' // Sofort springen, kein langes Gleiten
-                    });
-                }, 50);
+                // Wir probieren es zweimal: Einmal sofort und einmal nach einem kurzen Moment,
+                // falls die Liste noch wächst. Das fängt 99% der Fälle ab.
+                const position = parseInt(savedPosition);
+
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: position, behavior: 'instant' });
+
+                    // Zweiter Versuch nach 150ms, falls Bilder/Inhalt das Layout verschoben haben
+                    setTimeout(() => {
+                        window.scrollTo({ top: position, behavior: 'instant' });
+                    }, 150);
+                });
             }
         } else {
             // 2. OBEN STARTEN (Bei Klick auf einen neuen Link - NavigationType 'PUSH')
@@ -84,7 +89,11 @@ function ScrollMemory() {
 
         // 3. SPEICHERN (Bei jedem Scrollen)
         const handleScroll = () => {
+            const scrollKey = `scroll-${pathname}`;
             sessionStorage.setItem(scrollKey, window.scrollY.toString());
+
+            // NEU: Die aktuelle Gesamthöhe der Seite speichern
+            sessionStorage.setItem(`${scrollKey}-height`, document.documentElement.scrollHeight.toString());
         };
 
         window.addEventListener('scroll', handleScroll);
@@ -94,10 +103,68 @@ function ScrollMemory() {
     return null;
 }
 
+export function ScrollToTopButton() {
+    const [isVisible, setIsVisible] = useState(false);
+
+    // Button anzeigen, wenn 400px nach unten gescrollt wurde
+    useEffect(() => {
+        const toggleVisibility = () => {
+            if (window.scrollY > 400) {
+                setIsVisible(true);
+            } else {
+                setIsVisible(false);
+            }
+        };
+
+        window.addEventListener('scroll', toggleVisibility);
+        return () => window.removeEventListener('scroll', toggleVisibility);
+    }, []);
+
+    const scrollToTop = () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth', // Sanftes Gleiten nach oben
+        });
+    };
+
+    return (
+        <>
+            {isVisible && (
+                <button
+                    onClick={scrollToTop}
+                    className="
+                        fixed 
+                        bottom-20 
+                        right-6 
+                        z-50 
+                        p-3 
+                        bg-green-600 
+                        text-white 
+                        rounded-full 
+                        shadow-2xl 
+                        hover:bg-green-700 
+                        active:scale-90 
+                        transition-all 
+                        duration-300 
+                        animate-in 
+                        fade-in 
+                        slide-in-from-bottom-4
+                    "
+                    aria-label="Nach oben scrollen"
+                >
+                    <ArrowUp size={24} strokeWidth={3} />
+                </button>
+            )}
+        </>
+    );
+}
+
 // --- KOMPONENTE 1: ÜBERSICHTSLISTE (HOME) ---
 function RecipeList() {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [loading, setLoading] = useState(true);
+    const location = useLocation();
+    const savedHeight = sessionStorage.getItem(`scroll-${location.pathname}-height`);
 
     // State für Import
     const [importUrl, setImportUrl] = useState("");
@@ -111,7 +178,6 @@ function RecipeList() {
     const [allCookbooks, setAllCookbooks] = useState<Cookbook[]>([]);
     const [selectedCookbookIds, setSelectedCookbookIds] = useState<number[]>([]);
 
-    const location = useLocation();
 
     // Such-Query State
     const [searchQuery, setSearchQuery] = useState("");
@@ -293,57 +359,63 @@ function RecipeList() {
                     </div>
                 </div>
                 {/* Grid Layout für die Karten */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {/* FALLS LADEND: Zeige 6 Platzhalter-Karten */}
-                    {loading && (
-                        <>
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse border border-gray-100">
-                                    {/* Bild-Platzhalter */}
-                                    <div className="h-48 bg-gray-200" />
-                                    <div className="p-5">
-                                        {/* Titel-Platzhalter */}
-                                        <div className="h-6 bg-gray-200 rounded w-3/4 mb-4" />
-                                        {/* Text-Platzhalter (3 Zeilen für line-clamp-3 Optik) */}
-                                        <div className="space-y-2">
-                                            <div className="h-4 bg-gray-100 rounded w-full" />
-                                            <div className="h-4 bg-gray-100 rounded w-full" />
-                                            <div className="h-4 bg-gray-100 rounded w-2/3" />
+                <div
+                    style={{
+                        minHeight: loading && savedHeight ? `${savedHeight}px` : 'auto'
+                    }}
+                >
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {/* FALLS LADEND: Zeige 6 Platzhalter-Karten */}
+                        {loading && (
+                            <>
+                                {[...Array(6)].map((_, i) => (
+                                    <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse border border-gray-100">
+                                        {/* Bild-Platzhalter */}
+                                        <div className="h-48 bg-gray-200" />
+                                        <div className="p-5">
+                                            {/* Titel-Platzhalter */}
+                                            <div className="h-6 bg-gray-200 rounded w-3/4 mb-4" />
+                                            {/* Text-Platzhalter (3 Zeilen für line-clamp-3 Optik) */}
+                                            <div className="space-y-2">
+                                                <div className="h-4 bg-gray-100 rounded w-full" />
+                                                <div className="h-4 bg-gray-100 rounded w-full" />
+                                                <div className="h-4 bg-gray-100 rounded w-2/3" />
+                                            </div>
+                                            {/* Button-Platzhalter */}
+                                            <div className="h-4 bg-gray-100 rounded w-24 mt-6" />
                                         </div>
-                                        {/* Button-Platzhalter */}
-                                        <div className="h-4 bg-gray-100 rounded w-24 mt-6" />
+                                    </div>
+                                ))}
+                            </>
+                        )}
+                        {!loading && filteredAndSortedRecipes.map((recipe) => (
+                            <Link key={recipe.id} to={`/recipe/${recipe.id}`} className="group">
+                                <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
+                                    <div className="h-48 overflow-hidden bg-gray-200">
+                                        <img
+                                            // Nutzt das Bild aus der DB oder den Platzhalter, wenn image_url leer/null ist
+                                            src={recipe.image_url || PLACEHOLDER_IMAGE}
+                                            alt={recipe.title}
+                                            className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                                            onError={(e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                if (target.src !== PLACEHOLDER_IMAGE) {
+                                                    target.src = PLACEHOLDER_IMAGE;
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="p-5 flex-grow">
+                                        <h2 className="text-xl font-bold mb-2 text-gray-800">{recipe.title}</h2>
+                                        <p className="text-gray-600 line-clamp-3 text-sm">{recipe.description}</p>
+                                    </div>
+                                    <div className="p-5 pt-0 mt-auto">
+                                        <span className="text-red-500 font-semibold text-sm group-hover:underline">Zum Rezept &rarr;</span>
                                     </div>
                                 </div>
-                            ))}
-                        </>
-                    )}
-                    {!loading && filteredAndSortedRecipes.map((recipe) => (
-                        <Link key={recipe.id} to={`/recipe/${recipe.id}`} className="group">
-                            <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
-                                <div className="h-48 overflow-hidden bg-gray-200">
-                                    <img
-                                        // Nutzt das Bild aus der DB oder den Platzhalter, wenn image_url leer/null ist
-                                        src={recipe.image_url || PLACEHOLDER_IMAGE}
-                                        alt={recipe.title}
-                                        className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
-                                        onError={(e) => {
-                                            const target = e.target as HTMLImageElement;
-                                            if (target.src !== PLACEHOLDER_IMAGE) {
-                                                target.src = PLACEHOLDER_IMAGE;
-                                            }
-                                        }}
-                                    />
-                                </div>
-                                <div className="p-5 flex-grow">
-                                    <h2 className="text-xl font-bold mb-2 text-gray-800">{recipe.title}</h2>
-                                    <p className="text-gray-600 line-clamp-3 text-sm">{recipe.description}</p>
-                                </div>
-                                <div className="p-5 pt-0 mt-auto">
-                                    <span className="text-red-500 font-semibold text-sm group-hover:underline">Zum Rezept &rarr;</span>
-                                </div>
-                            </div>
-                        </Link>
-                    ))}
+                            </Link>
+                        ))}
+                    </div>
                 </div>
 
                 {filteredRecipes.length === 0 && (
@@ -974,6 +1046,7 @@ export default function App() {
         <AuthProvider>
             <Router>
                 <ScrollMemory />
+                <ScrollToTopButton />
                 <Routes>
                     {/* Öffentliche Routen */}
                     <Route path="/login" element={<Login />} />
