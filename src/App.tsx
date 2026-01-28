@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useParams, useSearchParams, useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useParams, useSearchParams, useNavigate, Navigate, useLocation, useNavigationType } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext';
 import Login from './Login';
 import Register from './Register';
@@ -58,9 +58,46 @@ function ProtectedRoute({ children }: { children: JSX.Element }) {
 
 export const PLACEHOLDER_IMAGE = "https://icon-library.com/images/photo-placeholder-icon/photo-placeholder-icon-7.jpg";
 
+function ScrollMemory() {
+    const { pathname } = useLocation();
+    const navType = useNavigationType(); // Erkennt 'PUSH', 'POP' oder 'REPLACE'
+
+    useEffect(() => {
+        const scrollKey = `scroll-${pathname}`;
+
+        // 1. WIEDERHERSTELLEN (Nur wenn der User "Zurück" geht - NavigationType 'POP')
+        if (navType === 'POP') {
+            const savedPosition = sessionStorage.getItem(scrollKey);
+            if (savedPosition) {
+                // Kleiner Timeout für Render-Sicherheit
+                setTimeout(() => {
+                    window.scrollTo({
+                        top: parseInt(savedPosition),
+                        behavior: 'instant' // Sofort springen, kein langes Gleiten
+                    });
+                }, 50);
+            }
+        } else {
+            // 2. OBEN STARTEN (Bei Klick auf einen neuen Link - NavigationType 'PUSH')
+            window.scrollTo(0, 0);
+        }
+
+        // 3. SPEICHERN (Bei jedem Scrollen)
+        const handleScroll = () => {
+            sessionStorage.setItem(scrollKey, window.scrollY.toString());
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [pathname, navType]);
+
+    return null;
+}
+
 // --- KOMPONENTE 1: ÜBERSICHTSLISTE (HOME) ---
 function RecipeList() {
     const [recipes, setRecipes] = useState<Recipe[]>([]);
+    const [loading, setLoading] = useState(true);
 
     // State für Import
     const [importUrl, setImportUrl] = useState("");
@@ -121,6 +158,8 @@ function RecipeList() {
             setRecipes(data);
         } catch (err) {
             console.error("Error loading recipes:", err);
+        } finally {
+            setLoading(false); // Laden beendet
         }
     }, [token, logout]);
 
@@ -189,9 +228,11 @@ function RecipeList() {
                 {/* Such- und Sortierbereich: Ohne extra <hr/> oben, da die border-b vom Header reicht */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
 
-                    {/* Linke Seite: Suche & Trefferanzahl */}
+                    {/* Suche & Trefferanzahl */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:max-w-2xl">
-                        <div className="relative flex-grow max-w-xs">
+
+                        {/* Suche: Auf Mobile w-full (vollflächig), ab sm: (Tablet/Desktop) max-w-xs */}
+                        <div className="relative w-full sm:max-w-xs">
                             <span className="absolute left-3 top-2.5 text-gray-400 text-sm">🔍</span>
                             <input
                                 type="text"
@@ -253,10 +294,33 @@ function RecipeList() {
                 </div>
                 {/* Grid Layout für die Karten */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {filteredAndSortedRecipes.map((recipe) => (
+                    {/* FALLS LADEND: Zeige 6 Platzhalter-Karten */}
+                    {loading && (
+                        <>
+                            {[...Array(6)].map((_, i) => (
+                                <div key={i} className="bg-white rounded-xl shadow-sm overflow-hidden animate-pulse border border-gray-100">
+                                    {/* Bild-Platzhalter */}
+                                    <div className="h-48 bg-gray-200" />
+                                    <div className="p-5">
+                                        {/* Titel-Platzhalter */}
+                                        <div className="h-6 bg-gray-200 rounded w-3/4 mb-4" />
+                                        {/* Text-Platzhalter (3 Zeilen für line-clamp-3 Optik) */}
+                                        <div className="space-y-2">
+                                            <div className="h-4 bg-gray-100 rounded w-full" />
+                                            <div className="h-4 bg-gray-100 rounded w-full" />
+                                            <div className="h-4 bg-gray-100 rounded w-2/3" />
+                                        </div>
+                                        {/* Button-Platzhalter */}
+                                        <div className="h-4 bg-gray-100 rounded w-24 mt-6" />
+                                    </div>
+                                </div>
+                            ))}
+                        </>
+                    )}
+                    {!loading && filteredAndSortedRecipes.map((recipe) => (
                         <Link key={recipe.id} to={`/recipe/${recipe.id}`} className="group">
                             <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 transform hover:-translate-y-1 h-full flex flex-col">
-                                <div className="h-48 overflow-hidden">
+                                <div className="h-48 overflow-hidden bg-gray-200">
                                     <img
                                         // Nutzt das Bild aus der DB oder den Platzhalter, wenn image_url leer/null ist
                                         src={recipe.image_url || PLACEHOLDER_IMAGE}
@@ -909,6 +973,7 @@ export default function App() {
     return (
         <AuthProvider>
             <Router>
+                <ScrollMemory />
                 <Routes>
                     {/* Öffentliche Routen */}
                     <Route path="/login" element={<Login />} />
