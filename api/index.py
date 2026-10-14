@@ -24,9 +24,12 @@ DATABASE_URL = os.getenv("POSTGRES_URL")
 connect_args = {}
 
 if DATABASE_URL:
-    # Fix for SQLAlchemy: Vercel uses 'postgres://', SQLAlchemy needs 'postgresql://'
+    # Vercel/Postgres often provides a postgres:// URL, but SQLAlchemy needs an explicit
+    # driver prefix when using the installed psycopg2 package.
     if DATABASE_URL.startswith("postgres://"):
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 else:
     # Local Fallback
     DATABASE_URL = "sqlite:///./local_recipes.db"
