@@ -9,13 +9,15 @@ export default defineConfig({
             registerType: 'autoUpdate', // Aktualisiert den Service Worker automatisch
             includeAssets: ['icon-192.png', 'icon-512.png', 'favicon.ico'], // Deine statischen Dateien
             manifest: {
+                id: '/',
+                scope: '/',
                 name: 'RecipeLib - One for all',
                 short_name: 'RecipeLib',
                 description: 'Meine persönliche Rezeptverwaltung',
                 theme_color: '#000000',
                 background_color: '#000000',
                 display: 'standalone',
-                start_url: '.',
+                start_url: '/',
                 icons: [
                     {
                         src: 'icon-192.png',
