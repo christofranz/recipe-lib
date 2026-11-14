@@ -195,13 +195,16 @@ def recipe_import_page(request: Request, recipe_uuid: str, db: Session = Depends
     full_url = str(request.url) 
     
     # 2. Response erstellen
-    response = templates.TemplateResponse("recipe_import.html", {
-        "request": request,
-        "recipe": recipe,
-        "ingredients": ingredients_list,
-        "instructions": instructions_list,
-        "full_url": full_url
-    })
+    response = templates.TemplateResponse(
+        request=request,
+        name="recipe_import.html",
+        context={
+            "recipe": recipe,
+            "ingredients": ingredients_list,
+            "instructions": instructions_list,
+            "full_url": full_url
+        }
+    )
 
     # block search engines
     response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
